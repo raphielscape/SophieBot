@@ -95,7 +95,7 @@ print(DEVICES_BETA)
 
 
 @decorator.command("update", from_users=OWNER_ID)
-async def update_devices(event):
+async def do_update_devices(event):
     update_devices()
     await event.reply("Done")
 
