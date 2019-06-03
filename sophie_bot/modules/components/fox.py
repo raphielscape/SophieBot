@@ -2,7 +2,7 @@ from ftplib import FTP
 
 from telethon import custom
 
-from sophie_bot import SUDO, CONFIG, decorator, logger
+from sophie_bot import OWNER_ID, CONFIG, decorator, logger
 from sophie_bot.modules.users import user_link
 from sophie_bot.modules.helper_func.flood import flood_limit_dec
 
@@ -94,7 +94,7 @@ print(DEVICES_STABLE)
 print(DEVICES_BETA)
 
 
-@decorator.command("update", from_users=SUDO)
+@decorator.command("update", from_users=OWNER_ID)
 async def update_devices(event):
     update_devices()
     await event.reply("Done")
