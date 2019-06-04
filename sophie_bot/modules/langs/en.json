@@ -77,7 +77,7 @@
         "usage_only_in_groups": "Usage limited only in groups!"
     },
     "greetings": {
-        "welcome_hay": "Welcome! How are you?",
+        "welcome_hay": "Welcome {mention}! How are you?",
         "cant_find_note": "I can't find this note.",
         "welcome_set_to_note": "Welcome set to note: `{}`",
         "welcome_is_note": "Welcome is note: `{}`",
@@ -115,7 +115,9 @@
 
         "no_rights_stop": "You don't have rights to stop filters here!",
         "cant_find_filter": "I can't find this filter!",
-        "filter_deleted": "Filter `{filter}` in {chat_name} deleted!"
+        "filter_deleted": "Filter `{filter}` in **{chat_name}** deleted!",
+
+        "filter_ban_success": "User {user} banned due to automated action on filter **{filter}**."
     },
     "warns": {
         "user_no_admeme": "You're not an admin",

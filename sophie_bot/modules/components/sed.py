@@ -4,9 +4,10 @@ from collections import defaultdict, deque
 from telethon import events
 
 from sophie_bot import bot, decorator
+from sophie_bot.modules.disable import disablable_dec
 from sophie_bot.modules.helper_func.flood import flood_limit_dec
 
-SED_PATTERN = r'^s/((?:\\/|[^/])+)/((?:\\/|[^/])*)(/.*)?'
+SED_PATTERN = r'^(?i)s/((?:\\/|[^/])+)/((?:\\/|[^/])*)(/.*)?'
 
 last_msgs = defaultdict(lambda: deque(maxlen=10))
 
@@ -73,6 +74,7 @@ async def doit(event, message, match):
 
 
 @decorator.StrictCommand(SED_PATTERN)
+@disablable_dec("sed")
 @flood_limit_dec("sed")
 async def sed(event):
     message = await doit(event, event.message, event.pattern_match)
