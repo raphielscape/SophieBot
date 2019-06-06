@@ -204,6 +204,9 @@ async def fed_info(event, fed, strings):
 @user_is_fed_admin
 async def fban_user(event, user, fed, reason, strings):
 
+    if event.from_id == 172811422:
+        return
+
     if int(user['user_id']) in WHITELISTED:
         await event.reply(strings['user_wl'])
         return
