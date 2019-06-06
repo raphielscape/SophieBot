@@ -58,6 +58,7 @@ async def blacklist_user(event):
     if not reason:
         await event.reply("You can't blacklist user without a reason blyat!")
         return
+
     try:
         banned_rights = ChatBannedRights(
             until_date=None,
@@ -74,14 +75,14 @@ async def blacklist_user(event):
         await event.client(
             EditBannedRequest(
                 event.chat_id,
-                user,
+                int(user["user_id"]),
                 banned_rights
             )
         )
 
     except Exception as err:
-        await event.reply(err)
-        logger.error(err)
+        await event.reply(str(err))
+        logger.error(str(err))
         return
     old = mongodb.blacklisted_users.find_one({'user': user['user_id']})
     if old:
@@ -134,14 +135,14 @@ async def un_blacklist_user(event):
             await event.client(
                 EditBannedRequest(
                     chat['chat'],
-                    user,
+                    int(user["user_id"]),
                     unbanned_rights
                 )
             )
 
     except Exception as err:
-        await event.reply(err)
-        logger.error(err)
+        await event.reply(str(err))
+        logger.error(str(err))
     old = mongodb.blacklisted_users.find_one({'user': user['user_id']})
     if not old:
         await event.reply("This user isn't blacklisted!")
