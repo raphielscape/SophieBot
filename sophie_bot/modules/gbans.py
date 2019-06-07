@@ -5,7 +5,7 @@ from telethon.tl.types import ChatBannedRights
 
 from sophie_bot import SUDO, decorator, logger, mongodb
 from sophie_bot.modules.connections import connection
-from sophie_bot.modules.language import get_string
+from sophie_bot.modules.language import get_string, get_strings_dec
 from sophie_bot.modules.users import (get_user, get_user_and_text,
                                       user_admin_dec, user_link)
 
@@ -75,7 +75,7 @@ async def blacklist_user(event):
         await event.client(
             EditBannedRequest(
                 event.chat_id,
-                int(user["user_id"]),
+                user['user_id'],
                 banned_rights
             )
         )
@@ -192,7 +192,8 @@ async def gban_trigger(event):
 
 
 @decorator.ChatAction()
-async def gban_helper_2(event):
+@get_strings_dec('gbans')
+async def gban_helper_2(event, strings):
     if event.user_joined is True or event.user_added is True:
         if hasattr(event.action_message.action, 'users'):
             from_id = event.action_message.action.users[0]
@@ -224,8 +225,8 @@ async def gban_helper_2(event):
 
                 if ban:
                     mongodb.gbanned_groups.insert_one({'user': from_id, 'chat': event.chat_id})
-                    await event.reply(get_string("gbans", "user_is_blacklisted", event.chat_id).format(
-                                      await user_link(from_id), K['reason']))
+                    await event.reply(strings['user_is_blacklisted'].format(
+                                      user=await user_link(from_id), rsn=K['reason']))
 
             except Exception as err:
                 logger.info(f'Error on gbanning {from_id} in {event.chat_id} \n {err}')
