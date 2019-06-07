@@ -215,7 +215,7 @@ async def fban_user(event, user, fed, reason, strings):
 
     bot_id = await bot.get_me()
     bot_id = bot_id.id
-    if user == bot_id:
+    if user['user_id'] == bot_id:
         await event.reply(strings['fban_self'])
         return
 
