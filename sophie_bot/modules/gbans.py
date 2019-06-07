@@ -3,7 +3,7 @@ from time import gmtime, strftime
 from telethon.tl.functions.channels import EditBannedRequest
 from telethon.tl.types import ChatBannedRights
 
-from sophie_bot import SUDO, decorator, logger, mongodb
+from sophie_bot import SUDO, WHITELISTED, decorator, logger, mongodb
 from sophie_bot.modules.connections import connection
 from sophie_bot.modules.language import get_string, get_strings_dec
 from sophie_bot.modules.users import (get_user, get_user_and_text,
@@ -55,6 +55,11 @@ async def gban_2(event):
 
 async def blacklist_user(event):
     user, reason = await get_user_and_text(event)
+
+    if int(user['user_id']) in WHITELISTED:
+        await event.reply("You can't blacklist a Whitelisted user")
+        return
+
     if not reason:
         await event.reply("You can't blacklist user without a reason blyat!")
         return
@@ -81,7 +86,6 @@ async def blacklist_user(event):
         )
 
     except Exception as err:
-        await event.reply(str(err))
         logger.error(str(err))
         return
     old = mongodb.blacklisted_users.find_one({'user': user['user_id']})
@@ -141,7 +145,6 @@ async def un_blacklist_user(event):
             )
 
     except Exception as err:
-        await event.reply(str(err))
         logger.error(str(err))
     old = mongodb.blacklisted_users.find_one({'user': user['user_id']})
     if not old:
