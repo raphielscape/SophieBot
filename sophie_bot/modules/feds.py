@@ -528,6 +528,8 @@ async def fban_helper_2(event, strings):
             from_id = event.action_message.action.users[0]
         else:
             from_id = event.action_message.from_id
+    else:
+        return  # ?
 
     chat = event.chat_id
 
