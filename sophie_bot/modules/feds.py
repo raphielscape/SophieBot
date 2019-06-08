@@ -8,7 +8,7 @@ from telethon.tl.functions.channels import (EditBannedRequest,
 from telethon.tl.types import ChannelParticipantCreator, ChatBannedRights
 from telethon.tl.custom import Button
 
-from sophie_bot import WHITELISTED, bot, decorator, mongodb
+from sophie_bot import WHITELISTED, bot, decorator, mongodb, logger
 from sophie_bot.modules.connections import connection
 from sophie_bot.modules.language import get_string, get_strings_dec
 from sophie_bot.modules.users import (get_user, get_user_and_text,
@@ -254,10 +254,11 @@ async def fban_user(event, user, fed, reason, strings):
         return
 
     fed_name = mongodb.fed_list.find_one({'fed_id': fed['fed_id']})['fed_name']
-    text = strings['fban_success_reply'].format(user=await user_link(user['user_id']),
-                                                fadmin=await user_link(event.from_id),
-                                                fed=fed_name,
-                                                rsn=reason)
+    text = strings['fban_success_reply'].format(
+        user=await user_link(user['user_id']),
+        fadmin=await user_link(event.from_id),
+        fed=fed_name,
+        rsn=reason)
     try:
         banned_rights = ChatBannedRights(
             until_date=None,
@@ -271,13 +272,12 @@ async def fban_user(event, user, fed, reason, strings):
             embed_links=True,
         )
 
-        await event.client(
-            EditBannedRequest(
-                event.chat_id,
-                user['user_id'],
-                banned_rights
-            )
-        )
+        await event.client(EditBannedRequest(
+            event.chat_id,
+            user['user_id'],
+            banned_rights
+        ))
+
     except Exception:
         pass
 
@@ -328,15 +328,14 @@ async def unfban_user(event, user, fed, reason, strings):
                 embed_links=False,
             )
 
-            await event.client(
-                EditBannedRequest(
-                    chat['chat_id'],
-                    user['user_id'],
-                    unbanned_rights
-                )
-            )
+            await event.client(EditBannedRequest(
+                chat['chat_id'],
+                user['user_id'],
+                unbanned_rights
+            ))
+
         except Exception as err:
-            await msg.edit(err)
+            logger.error(err)
 
     mongodb.fbanned_users.delete_one({'_id': check['_id']})
 
