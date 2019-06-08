@@ -26,8 +26,8 @@ def get_user_and_fed_and_text_dec(func):
             if a == "-":
                 F += 1
         if F == 4:  # group(2) is id
-            chat_fed = await get_fed_by_fed_id(event, event.pattern_match.group(2))
-            if chat_fed is False:
+            chat_fed = mongodb.fed_list.find_one({'fed_id': event.pattern_match.group(2)})
+            if not chat_fed:
                 await event.reply(get_string("feds", 'fed_id_invalid', event.chat_id))
                 return
         else:
@@ -83,10 +83,10 @@ def get_fed_dec(allow_no_fed=False):
     def wrapped_0(func):
         async def wrapped_1(event, *args, **kwargs):
             fed_id = event.pattern_match.group(1)
-            fed = await get_fed_by_fed_id(event, fed_id)
-            if fed is False and allow_no_fed is True:
+            fed = mongodb.fed_list.find_one({'fed_id': fed_id})
+            if not fed and allow_no_fed is True:
                 fed = None
-            elif fed is False and allow_no_fed is False:
+            elif not fed and allow_no_fed is False:
                 await event.reply(get_string("feds", 'fed_id_invalid', event.chat_id))
                 return
             return await func(event, fed, *args, **kwargs)
@@ -101,13 +101,6 @@ async def get_fed_by_chat(event):
         return None
     fed = mongodb.fed_list.find_one({'fed_id': chat_fed['fed_id']})
 
-    return fed
-
-
-async def get_fed_by_fed_id(event, fed_id):
-    fed = mongodb.fed_list.find_one({'fed_id': fed_id})
-    if not fed:
-        return False
     return fed
 
 
