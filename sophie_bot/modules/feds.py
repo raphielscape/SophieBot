@@ -26,7 +26,7 @@ def get_user_and_fed_and_text_dec(func):
             if a == "-":
                 F += 1
         if F == 4:  # group(2) is id
-            chat_fed = await get_chat_fed(event, event.pattern_match.group(2))
+            chat_fed = await get_fed_by_fed_id(event, event.pattern_match.group(2))
             if chat_fed is False:
                 await event.reply(get_string("feds", 'fed_id_invalid', event.chat_id))
                 return
@@ -126,6 +126,9 @@ def user_is_fed_admin(func):
                     name=fed['fed_name']))
         return await func(event, *args, **kwargs)
     return wrapped_1
+
+
+# Commands
 
 
 @decorator.command('newfed', arg=True)
@@ -506,6 +509,9 @@ async def fed_save_note(event, strings, fed, status, chat_id, chat_title):
     await event.reply(text, buttons=buttons)
 
 
+# Functions
+
+
 async def join_fed(event, chat_id, fed_id, user):
     peep = await bot(
         GetParticipantRequest(
@@ -589,18 +595,18 @@ async def fban_helper(event, strings):
     )
 
     try:
-        ban = await event.client(
-            EditBannedRequest(
-                chat,
-                user,
-                banned_rights
-            )
-        )
+        ban = await event.client(EditBannedRequest(
+            chat,
+            user,
+            banned_rights
+        ))
 
         if ban:
-            await event.respond(strings['fban_usr_rmvd'].format(fed=fed_name,
-                                                                user=await user_link(user),
-                                                                rsn=is_banned['reason']))
+            await event.respond(strings['fban_usr_rmvd'].format(
+                fed=fed_name,
+                user=await user_link(user),
+                rsn=is_banned['reason']
+            ))
 
     except Exception:
         pass
@@ -652,18 +658,18 @@ async def fban_helper_2(event, strings):
     )
 
     try:
-        ban = await event.client(
-            EditBannedRequest(
-                chat,
-                from_id,
-                banned_rights
-            )
-        )
+        ban = await event.client(EditBannedRequest(
+            chat,
+            from_id,
+            banned_rights
+        ))
 
         if ban:
-            await event.respond(strings['fban_usr_rmvd'].format(fed=fed_name,
-                                                                user=await user_link(from_id),
-                                                                rsn=is_banned['reason']))
+            await event.respond(strings['fban_usr_rmvd'].format(
+                fed=fed_name,
+                user=await user_link(from_id),
+                rsn=is_banned['reason']
+            ))
 
     except Exception:
         pass
