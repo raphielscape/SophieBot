@@ -174,8 +174,8 @@ async def user_info(event):
     user = await get_user(event)
 
     check = mongodb.blacklisted_users.find_one({'user': user['user_id']})
-    if check is True:
-        gban_stat = "Yes"
+    if check:
+        gban_stat = f"Yes\n* Gban data: `{check['date']}`\n* Reason: `{check['reason']}`"
     else:
         gban_stat = "No"
 
@@ -190,7 +190,7 @@ async def user_info(event):
         text += "\n**Username:** @" + str(user['username'])
 
     text += "\n**User link:** " + str(await user_link(user['user_id']))
-    text += "\n\n **Globally banned:** " + str(gban_stat)
+    text += "\n\n**Globally banned:** " + str(gban_stat)
 
     await event.reply(text)
 
