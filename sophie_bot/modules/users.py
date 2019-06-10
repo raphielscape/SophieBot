@@ -339,7 +339,7 @@ async def user_link(user_id):
             user = await add_user_to_db(await bot(GetFullUserRequest(int(user_id))))
             user_link = "[{}](tg://user?id={})".format(
                 user['first_name'], user['user_id'])
-        except (ValueError, TypeError):
+        except Exception:
             user_link = "[{}](tg://user?id={})".format(
                 user_id, user_id)
     return user_link
