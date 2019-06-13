@@ -11,7 +11,7 @@
         "no_right_save_note": "You don't have rights to save notes here!",
         "saved": "saved",
         "updated": "updated",
-        "note_saved_or_updated" :"**Note {note_name} {status} in {chat_title}!**\n",
+        "note_saved_or_updated": "**Note {note_name} {status} in {chat_title}!**\n",
         "you_can_get_note": "You can retrieve this note by using `/get {name}`, or `#{name}`",
         "dont_have_rights_to_save": "You don't have rights to save notes here!",
         "del_note": "Delete note",
@@ -30,7 +30,10 @@
         "delmsg_no_arg": "deletemsg button can contain only 'admin' or 'user' argument!",
         "bot_msg" : "I'm sorry, i can't get this message, probably this a other bot's message. I can't save it.",
         "pmed_note": "I pm'ed note to you!",
-        "notename_cant_contain": "Note name can't conatin `{}` !"
+        "notename_cant_contain": "Note name can't conatin `{}` !",
+
+        "note_saved_or_updated_in_fed": "**Note {note_name} {status} in {fed_name} Federation!**\n",
+        "note_already_in_chat": "Note `{note_name}` already exits in **{chat_name}** chat, remove it before trying save."
     },
     "bans": {
         "user_banned": "User {user} banned by {admin} in {chat_name}!\n",
@@ -51,14 +54,16 @@
         "user_admin_ban": "This is an admin, I can't ban him.",
         "user_admin_mute": "This is an admin, I can't mute him.",
         "user_admin_kick": "This is an admin, I can't kick him.",
-        "user_admin_unban": "Seriously?! How am I supposed to unban an admin?",
         "user_admin_unmute": "Mm?! unmuted",
         "user_mooted": "{admin} muted {user} in {chat_name}",
         "user_unmooted": "{admin} unmuted {user} in {chat_name}",
         "kickme_admin": "I can't kick you!",
         "whitelisted": "Haha NO! You is whitelisted!",
         "kickme_success": "Okay.. no problem!",
-        "tmute_sucess": "Admin {admin} muted {user} for {time} {unit} !"
+        "tmute_sucess": "Admin {admin} muted {user} for {time} {unit} !",
+        "usernt_banned": "This user isn't banned to unban!!",
+        
+        "user_gbanned": "\n\nWarning! This user is globally banned becuase:\n`{reason}`"
     },
     "connections": {
         "can't_find_chat_use_id": "I can't find this chat, try using chat id.",
@@ -85,7 +90,7 @@
         "no_args_serv": "Please give me yes/no to Enable/Disable Clean Service",
         "serv_yes": "Clean Service is successfully enabled in this chat!",
         "serv_no": "Clean Service is successfully disabled in this chat!",
-        "wlcm_sec_noArgs": "Please give any option",
+        "noArgs": "Please give any option",
         "wlcm_sec_hard": "Welcome Security is set to **HARD** in this chat!",
         "wlcm_sec_soft": "Welcome Security is set to **SOFT** in this chat!",
         "wlcm_sec_off": "Welcome Security is disabled in this chat!",
@@ -93,7 +98,15 @@
         "wlcm_sec": "Hey {mention}, Please click below button to prove that you aren't a Bot!",
         "not_trgt_usr": "You're not supposed to click this button!",
         "trgt_success": "Great! you have been unmuted!",
-        "not_trgt": "You are not supposed to click this button"
+        "not_trgt": "You are not supposed to click this button",
+
+        "cln_wel_alr_enabled": "Cleaning welcomes already enabled for **{chat_name}**!",
+        "cln_wel_alr_disabled": "Cleaning welcomes was not enabled for **{chat_name}**",
+        "cln_wel_disabled": "Cleaning welcomes is `disabled` for **{chat_name}**.",
+        "cln_wel_enabled": "Cleaning welcomes is `enabled` for **{chat_name}**.",
+
+        "cln_wel_s_enabled": "Cleaning welcomes enabled for **{chat_name}**.",
+        "cln_wel_s_disabled": "Cleaning welcomes disabled for **{chat_name}**."
     },
     "filters": {
         "dont_have_right": "You don't have rights to save filters here!",
@@ -157,10 +170,24 @@
         "chat_not_modified_unpin": "There is no pinned message to unpin!",
 
         "help_btn": "Click me for help!",
-        "help_txt": "Click below button for help!"
+        "help_txt": "Click below button for help!",
+
+        "rule_empty": "Rules can't be empty.",
+        "rule_updated": "Rules for this chat is updated!",
+        "rules_inserted": "Set rules for this chat!",
+        "rules_btn": "Rules",
+        "rules_text": "Click below button to read chat rules!",
+        "no_rules": "This chat doesn't seem to have had any rules set yet... I wouldn't take that as an invitation though.",
+
+        "clrd_rules": "Rules for this chat cleared successfully!",
+        
+        "paste_success_extra": "**Pasted successfully!**\nShortened url: {}\nOriginal Dogbin URL: {}",
+        "paste_success": "**Pasted successfully!**\nDogbin URL: {}",
+        "paste_fail": "Failed to reach Dogbin!",
+        "paste_no_text": "You haven't supplied text to paste!"
     },
     "gbans": {
-        "user_is_blacklisted": "User {} blacklisted.\nReason: {}"
+        "user_is_blacklisted": "User {user} is blacklisted so has been removed. \nReason: __{rsn}__"
     },
     "pm_menu": {
         "start_hi": "Hey there! My name is Sophie :3, I help you manage your group and more!",
@@ -212,9 +239,32 @@
         "fban_self": "Try fban yourselve, thats will be a show!",
         "need_admin_to_fban": "You should be Federation admin to use fban for {name} Fedearion",
         "already_fbanned": "{user} already fbanned in this federation.",
-        "fban_success": "**Fban** \n**User :** {user} \n**Fed Admin :** {fadmin} \n**Fed :** {fed} \n**Reason :** {rsn}",
-        "user_wl": "This user is whitelisted from fbanning."
+        "fban_success_reply": "**Fban** \n**User :** {user} \n**Fed Admin :** {fadmin} \n**Fed :** {fed} \n**Reason :** {rsn}",
+        "user_wl": "This user is whitelisted from fbanning.",
+        "fban_usr_rmvd": "User {user} is fbanned in current federation **{fed}**.So has been removed! \nReason: __{rsn}__",
 
+        "unfban_self": "I can't unfban myselve, think of something to have fun instead of this.",
+        "user_not_fbanned": "{user} didn't fbanned in this federation.",
+        "unfban_started": "Unbanning {user} in {fed_name} Federation by {admin} started..",
+        "unfban_completed": "{user} unbanned in {fed_name} Federation by {admin}",
+
+        "no_fed_2": "This chat is not in any federation to subscribe to any federation.",
+        "no_arg_given": "How can I subscribe to any federation without Fed ID?!",
+        "only_creator": "Only fed creator can subscribe to any federation.",
+        "invalid_fedid": "The given Fed ID is invalid!",
+        "subfed_success": "This federation successfully subscribed to **{fedname}** fed.",
+        "already_subfed": "This federation already subscribed to given federation.",
+
+        "no_fed_3": "This chat is not in any federation to unsubscribe to any federation.",
+        "no_arg_given_2": "How can I unsubscribe any federation without their fed ID",
+        "only_creator_2": "Only fed creator can unsubscribe any federation",
+        "fed_n'tsubscribed": "Given Fed ID isn't subscribed to unsubscribe!",
+        "unsub_success": "This federation successfully unsubscribed to **{fedname}** fed.",
+
+        "no_fed_4": "This chat is not in any federation to list the subscribed federations!",
+        "no_subfeds": "This federation isn't subscribed to any federations!",
+        "list_head": "Subscribed federations are: \n",
+        "list_data": "- **{fedname}**"
     }
  },
  "HELPS": {

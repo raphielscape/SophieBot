@@ -55,7 +55,12 @@ async def stats(event):
     chats = mongodb.chat_list.count()
     text += "* `{}` total users, in `{}` chats\n".format(usrs, chats)
     text += "* `{}` total notes\n".format(mongodb.notes.count())
+    text += "* `{}` total warns\n".format(mongodb.warns.count())
     text += "* `{}` total gbanned users\n".format(mongodb.blacklisted_users.count())
+    text += "* `{}` chats in `{}` total feds, `{}` fbanned users\n".format(
+        mongodb.fed_list.count(),
+        mongodb.fed_groups.count(),
+        mongodb.fbanned_users.count())
     db = mongodb.command("dbstats")
     if 'fsTotalSize' in db:
         text += '* Database size is `{}`, free `{}`'.format(

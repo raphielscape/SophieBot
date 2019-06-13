@@ -2,18 +2,20 @@ import re
 from time import gmtime, strftime
 
 from bson.objectid import ObjectId
-from telethon import custom, errors, utils
+
+from telethon.tl.functions.users import GetFullUserRequest
+from telethon import custom, errors
 from telethon.tl.custom import Button
 
-from sophie_bot import BOT_USERNAME, bot, decorator, mongodb
+from sophie_bot import BOT_USERNAME, bot, decorator, mongodb, logger
 from sophie_bot.modules.connections import connection, get_conn_chat
 from sophie_bot.modules.disable import disablable_dec
 from sophie_bot.modules.helper_func.flood import flood_limit_dec
 from sophie_bot.modules.language import get_string, get_strings_dec
+from sophie_bot.modules.feds import get_chat_fed_dec
 from sophie_bot.modules.users import (check_group_admin, is_user_admin,
-                                      user_admin_dec, user_link)
-
-RESTRICTED_SYMBOLS = ['**', '__', '`']
+                                      user_admin_dec, user_link, add_user_to_db)
+from sophie_bot.modules.helper_func.notes import save_get_new_note
 
 
 @decorator.command("save", word_arg=True)
@@ -21,33 +23,7 @@ RESTRICTED_SYMBOLS = ['**', '__', '`']
 @connection(admin=True)
 @get_strings_dec("notes")
 async def save_note(event, strings, status, chat_id, chat_title):
-    note_name = event.pattern_match.group(1)
-    for sym in RESTRICTED_SYMBOLS:
-        if sym in note_name:
-            await event.reply(strings["notename_cant_contain"].format(sym))
-            return
-    print(note_name)
-    if note_name[0] == "#":
-        note_name = note_name[1:]
-    file_id = None
-    buttons = None
-    prim_text = ""
-    if len(event.message.text.split(" ")) > 2:
-        prim_text = event.text.partition(note_name)[2]
-    if event.message.reply_to_msg_id:
-        msg = await event.get_reply_message()
-        if not msg:
-            await event.reply(strings["bot_msg"])
-            return
-        note_text = msg.message
-        if prim_text:
-            note_text += prim_text
-        if hasattr(msg.media, 'photo'):
-            file_id = utils.pack_bot_file_id(msg.media)
-        if hasattr(msg.media, 'document'):
-            file_id = utils.pack_bot_file_id(msg.media)
-    else:
-        note_text = prim_text
+    note_name, file_id, note_text = await save_get_new_note(event, strings, chat_id)
 
     status = strings["saved"]
     old = mongodb.notes.find_one({'chat_id': chat_id, "name": note_name})
@@ -72,6 +48,8 @@ async def save_note(event, strings, status, chat_id, chat_title):
             'updated_by': event.from_id,
             'creator': creator,
             'file_id': file_id})
+
+    buttons = None
 
     if old:
         mongodb.notes.update_one({'_id': old['_id']}, {"$set": new}, upsert=False)
@@ -125,19 +103,29 @@ async def noteinfo(event, strings, status, chat_id, chat_title):
     await event.reply(text)
 
 
-@decorator.command("notes")
+@decorator.command("notes ?(.*)")
 @flood_limit_dec("notes")
 @disablable_dec("notes")
 @connection()
+@get_chat_fed_dec(allow_no_fed=True)
 @get_strings_dec("notes")
-async def list_notes(event, strings, status, chat_id, chat_title):
-    notes = mongodb.notes.find({'chat_id': chat_id})
+async def list_notes(event, strings, fed, status, chat_id, chat_title):
+    notes = mongodb.notes.find({'chat_id': chat_id}).sort("name", 1)
     text = strings["notelist_header"].format(chat_name=chat_title)
     if notes.count() == 0:
         text = strings["notelist_no_notes"]
     else:
         for note in notes:
-            text += "- `{}`\n".format(note['name'])
+            text += "- `#{}`\n".format(note['name'])
+    if fed:
+        fed_notes = mongodb.fed_notes.find({'fed_id': fed['fed_id']}).sort("name", 1)
+        if not fed_notes.count() == 0:
+            if not fed_notes:
+                text += "\nNo notes in **{fed_name}** Federation".format(fed_name=fed["fed_name"])
+            else:
+                text += "\n**Notes in {fed_name} Federation:**\n".format(fed_name=fed["fed_name"])
+                for note in fed_notes:
+                    text += "- `#{}`\n".format(note['name'])
     await event.reply(text)
 
 
@@ -199,7 +187,7 @@ async def send_note(chat_id, group_id, msg_id, note_name,
     if from_id:
         user = mongodb.user_list.find_one({"user_id": from_id})
         if not user:
-            return  # TODO: Add user in db
+            user = await add_user_to_db(await bot(GetFullUserRequest(int(from_id))))
         if 'last_name' in user:
             last_name = user['last_name']
             if not last_name:
@@ -228,15 +216,19 @@ async def send_note(chat_id, group_id, msg_id, note_name,
             rules='Will be later'
         )
 
-    await bot.send_message(
-        chat_id,
-        string,
-        buttons=buttons,
-        parse_mode=format,
-        reply_to=msg_id,
-        file=file_id,
-        link_preview=preview
-    )
+    try:
+        return await bot.send_message(
+            chat_id,
+            string,
+            buttons=buttons,
+            parse_mode=format,
+            reply_to=msg_id,
+            file=file_id,
+            link_preview=preview
+        )
+    except Exception as err:
+        await bot.send_message(chat_id, str(err))
+        logger.error("Error in send_note/send_message: " + str(err))
 
 
 @decorator.CallBackQuery(b'delnote_', compile=True)
@@ -256,7 +248,8 @@ async def del_note_callback(event):
 
 
 @decorator.StrictCommand("^[/!#](?:get|get@{})(?: |$)(.*)".format(BOT_USERNAME))
-async def get_note(event):
+@connection()
+async def get_note(event, status, chat_id, chat_title):
     raw_text = event.message.raw_text.split()
     note_name = raw_text[1].lower()
     if note_name[0] == "#":
@@ -265,22 +258,23 @@ async def get_note(event):
         noformat = True
     else:
         noformat = False
-    if len(note_name) > 1:
+    if len(note_name) >= 1:
         await send_note(
-            event.chat_id, event.chat_id, event.message.id, note_name,
+            event.chat_id, chat_id, event.message.id, note_name,
             show_none=True, noformat=noformat, from_id=event.from_id)
 
 
 @decorator.StrictCommand("^#(.*)")
-async def check_hashtag(event):
+@connection()
+async def check_hashtag(event, status, chat_id, chat_title):
     status, chat_id, chat_title = await get_conn_chat(event.from_id, event.chat_id)
     if status is False:
         await event.reply(chat_id)
         return
     note_name = event.message.raw_text[1:].lower()
-    if len(note_name) > 1:
+    if len(note_name) >= 1:
         await send_note(
-            event.chat_id, event.chat_id, event.message.id, note_name,
+            event.chat_id, chat_id, event.message.id, note_name,
             from_id=event.from_id)
 
 
@@ -290,7 +284,10 @@ def button_parser(chat_id, texts):
     text = re.sub(r'\[(.+?)\]\(button(.+?):(.+?)(:same|)\)', '', texts)
     for raw_button in raw_buttons:
         if raw_button[1] == 'url':
-            t = [custom.Button.url(raw_button[0], raw_button[2])]
+            url = raw_button[2]
+            if url[0] == '/' and url[0] == '/':
+                url = url[2:]
+            t = [custom.Button.url(raw_button[0], url)]
         elif raw_button[1] == 'note':
             t = [Button.inline(raw_button[0], 'get_note_{}_{}'.format(
                 chat_id, raw_button[2]))]

@@ -1,11 +1,12 @@
 import time
 
-from telethon.tl.functions.channels import EditBannedRequest
-from telethon.tl.types import ChatBannedRights
+from telethon.tl.functions.channels import (EditBannedRequest,
+                                            GetParticipantRequest)
+from telethon.tl.types import ChatBannedRights, ChannelParticipantBanned
 
-from sophie_bot import WHITELISTED, bot, decorator
+from sophie_bot import WHITELISTED, bot, decorator, logger, mongodb
 from sophie_bot.modules.connections import connection
-from sophie_bot.modules.language import get_string
+from sophie_bot.modules.language import get_string, get_strings_dec
 from sophie_bot.modules.users import (get_user, get_user_and_text,
                                       is_user_admin, user_admin_dec, user_link)
 
@@ -75,12 +76,20 @@ async def kick(event, status, chat_id, chat_title):
 @decorator.command("unban", arg=True)
 @user_admin_dec
 @connection(admin=True, only_in_groups=True)
-async def unban(event, status, chat_id, chat_title):
+@get_strings_dec("bans")
+async def unban(event, strings, status, chat_id, chat_title):
     user, data = await get_user_and_text(event)
     if await unban_user(event, user['user_id'], chat_id):
         admin_str = await user_link(event.from_id)
         user_str = await user_link(user['user_id'])
-        text = get_string("bans", "user_unbanned", event.chat_id)
+        text = strings["user_unbanned"]
+
+        gbanned = mongodb.blacklisted_users.find_one({'user': user['user_id']})
+        if gbanned:
+            text += strings["user_gbanned"].format(
+                reason=gbanned['reason']
+            )
+
         await event.reply(text.format(admin=admin_str, user=user_str, chat_name=chat_title))
 
 
@@ -190,7 +199,7 @@ async def ban_user(event, user_id, chat_id, time_val):
         )
 
     except Exception as err:
-        await event.edit(str(err))
+        await event.reply(str(err))
         return False
 
     return True
@@ -239,7 +248,7 @@ async def kick_user(event, user_id, chat_id):
         )
 
     except Exception as err:
-        print(str(err))
+        logger.error(str(err))
         return False
     return True
 
@@ -265,10 +274,19 @@ async def unban_user(event, user_id, chat_id):
         await event.reply(get_string("bans", "bot_cant_be_unbanned",
                           event.chat_id))
         return False
-    if await is_user_admin(chat_id, user_id) is True:
-        await event.reply(get_string("bans", "user_admin_unban",
-                          event.chat_id))
-        return False
+    try:
+        peep = await bot(
+            GetParticipantRequest(
+                chat_id, user_id
+            )
+        )
+
+        if not isinstance(peep.participant, ChannelParticipantBanned):
+            await event.reply(get_string('bans', 'usernt_banned', chat_id))
+            return False
+    except Exception:
+        pass
+
     try:
         await event.client(
             EditBannedRequest(
@@ -278,7 +296,7 @@ async def unban_user(event, user_id, chat_id):
             )
         )
     except Exception as err:
-        print(str(err))
+        logger.error(str(err))
         return False
     return True
 
@@ -310,7 +328,7 @@ async def mute_user(event, user_id, chat_id, time_val):
         )
 
     except Exception as err:
-        print(str(err))
+        logger.error(str(err))
         return False
     return True
 
@@ -341,7 +359,7 @@ async def unmute_user(event, user_id, chat_id):
         )
 
     except Exception as err:
-        print(str(err))
+        logger.error(str(err))
         return False
     return True
 
@@ -352,7 +370,7 @@ async def kick_self(event, chat, user):
         await event.reply(get_string("bans", "kickme_admin", chat))
         return False
     if str(user) in WHITELISTED:
-        print(str(user))
+        logger.error(str(user))
         await event.reply(get_string("bans", "whitelisted", chat))
         return False
 

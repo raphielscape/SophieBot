@@ -1,13 +1,19 @@
+import asyncio
 import subprocess
 import uuid
+from time import gmtime, strftime
 
 from telethon.tl.functions.channels import (EditBannedRequest,
                                             GetParticipantRequest)
 from telethon.tl.types import ChannelParticipantCreator, ChatBannedRights
+from telethon.tl.custom import Button
 
-from sophie_bot import bot, decorator, mongodb, WHITELISTED
+from sophie_bot import WHITELISTED, bot, decorator, mongodb, logger
+from sophie_bot.modules.connections import connection
 from sophie_bot.modules.language import get_string, get_strings_dec
-from sophie_bot.modules.users import get_user, get_user_and_text, user_link
+from sophie_bot.modules.users import (get_user, get_user_and_text,
+                                      is_user_admin, user_link, user_admin_dec)
+from sophie_bot.modules.helper_func.notes import save_get_new_note
 
 
 def get_user_and_fed_and_text_dec(func):
@@ -20,20 +26,21 @@ def get_user_and_fed_and_text_dec(func):
             if a == "-":
                 F += 1
         if F == 4:  # group(2) is id
-            print('ogogo')
-            fed = await get_chat_fed(event, event.pattern_match.group(2))
-            if fed is False:
+            chat_fed = mongodb.fed_list.find_one({'fed_id': event.pattern_match.group(2)})
+            if not chat_fed:
+                await event.reply(get_string("feds", 'fed_id_invalid', event.chat_id))
                 return
         else:
-            print('owowo')
-            fed = mongodb.fed_groups.find_one({'chat_id': event.chat_id})
-            if not fed:
+            chat_fed = mongodb.fed_groups.find_one({'chat_id': event.chat_id})
+            if not chat_fed:
                 await event.reply(get_string("feds", 'chat_not_in_fed', event.chat_id))
                 return
             text += event.pattern_match.group(2)
             text += " "
         if event.pattern_match.group(3):
             text += event.pattern_match.group(3)
+
+        fed = mongodb.fed_list.find_one({'fed_id': chat_fed['fed_id']})
 
         return await func(event, user, fed, text, *args, **kwargs)
     return wrapped_1
@@ -58,30 +65,42 @@ def get_user_and_fed_dec(func):
     return wrapped_1
 
 
-def get_chat_fed_dec(func):
-    async def wrapped_1(event, *args, **kwargs):
-        fed_id = event.pattern_match.group(1)
-        fed = await get_chat_fed(event, fed_id)
-        if fed is False:
-            return
-        return await func(event, fed, *args, **kwargs)
-    return wrapped_1
+def get_chat_fed_dec(allow_no_fed=False):
+    def wrapped_0(func):
+        async def wrapped_1(event, *args, **kwargs):
+            fed = await get_fed_by_chat(event)
+            if fed is False and allow_no_fed is True:
+                fed = None
+            elif fed is False and allow_no_fed is False:
+                await event.reply(get_string("feds", 'fed_id_invalid', event.chat_id))
+                return
+            return await func(event, fed, *args, **kwargs)
+        return wrapped_1
+    return wrapped_0
 
 
-async def get_chat_fed(event, fed_id):
+def get_fed_dec(allow_no_fed=False):
+    def wrapped_0(func):
+        async def wrapped_1(event, *args, **kwargs):
+            fed_id = event.pattern_match.group(1)
+            fed = mongodb.fed_list.find_one({'fed_id': fed_id})
+            if not fed and allow_no_fed is True:
+                fed = None
+            elif not fed and allow_no_fed is False:
+                await event.reply(get_string("feds", 'fed_id_invalid', event.chat_id))
+                return
+            return await func(event, fed, *args, **kwargs)
+        return wrapped_1
+    return wrapped_0
+
+
+async def get_fed_by_chat(event):
     chat_id = event.chat_id
-    print(fed_id)
-    if not fed_id:
-        chat_fed = mongodb.fed_groups.find_one({'chat_id': chat_id})
-        if not chat_fed:
-            await event.reply(get_string("feds", 'chat_not_in_fed', event.chat_id))
-            return False
-        fed = mongodb.fed_list.find_one({'fed_id': chat_fed['fed_id']})
-    else:
-        fed = mongodb.fed_list.find_one({'fed_id': fed_id})
-        if not fed:
-            await event.reply(get_string("feds", 'fed_id_invalid', event.chat_id))
-            return False
+    chat_fed = mongodb.fed_groups.find_one({'chat_id': chat_id})
+    if not chat_fed:
+        return None
+    fed = mongodb.fed_list.find_one({'fed_id': chat_fed['fed_id']})
+
     return fed
 
 
@@ -100,6 +119,9 @@ def user_is_fed_admin(func):
                     name=fed['fed_name']))
         return await func(event, *args, **kwargs)
     return wrapped_1
+
+
+# Commands
 
 
 @decorator.command('newfed', arg=True)
@@ -161,7 +183,7 @@ async def promote_to_fed(event, user, fed, strings):
 
 @decorator.command('fchatlist', arg=True)
 @get_strings_dec("feds")
-@get_chat_fed_dec
+@get_fed_dec()
 async def fed_chat_list(event, fed, strings):
     text = strings['chats_in_fed'].format(name=fed['fed_name'])
     chats = mongodb.fed_groups.find({'fed_id': fed['fed_id']})
@@ -185,7 +207,7 @@ async def fed_chat_list(event, fed, strings):
 
 @decorator.command('finfo', arg=True)
 @get_strings_dec("feds")
-@get_chat_fed_dec
+@get_fed_dec()
 async def fed_info(event, fed, strings):
     text = strings['fed_info']
     text += strings['fed_name'].format(name=fed['fed_name'])
@@ -201,23 +223,20 @@ async def fed_info(event, fed, strings):
 @get_user_and_fed_and_text_dec
 @user_is_fed_admin
 async def fban_user(event, user, fed, reason, strings):
-    banned_rights = ChatBannedRights(
-        until_date=None,
-        view_messages=True,
-        send_messages=True,
-        send_media=True,
-        send_stickers=True,
-        send_gifs=True,
-        send_games=True,
-        send_inline=True,
-        embed_links=True,
-    )
+
+    if event.from_id == 172811422:
+        return
+
+    if reason == " ":
+        reason = 'No reason'
+
     if int(user['user_id']) in WHITELISTED:
         await event.reply(strings['user_wl'])
         return
 
     bot_id = await bot.get_me()
-    if user == bot_id:
+    bot_id = bot_id.id
+    if user['user_id'] == bot_id:
         await event.reply(strings['fban_self'])
         return
 
@@ -228,25 +247,261 @@ async def fban_user(event, user, fed, reason, strings):
         return
 
     fed_name = mongodb.fed_list.find_one({'fed_id': fed['fed_id']})['fed_name']
-    chats = mongodb.fed_groups.find({'fed_id': fed['fed_id']})
-    text = strings['fban_success'].format(user=await user_link(user['user_id']),
-                                          fadmin=await user_link(event.from_id),
-                                          fed=fed_name,
-                                          rsn=reason)
-    for chat in chats:
-        try:
-            await event.client(
-                EditBannedRequest(
-                    chat['chat_id'],
-                    user['user_id'],
-                    banned_rights
-                )
-            )
-        except Exception:
-            pass
+    text = strings['fban_success_reply'].format(
+        user=await user_link(user['user_id']),
+        fadmin=await user_link(event.from_id),
+        fed=fed_name,
+        rsn=reason)
+    try:
+        banned_rights = ChatBannedRights(
+            until_date=None,
+            view_messages=True,
+            send_messages=True,
+            send_media=True,
+            send_stickers=True,
+            send_gifs=True,
+            send_games=True,
+            send_inline=True,
+            embed_links=True,
+        )
 
-        mongodb.fbanned_users.insert_one({'user': user['user_id'], 'fed_id': fed['fed_id']})
-        await event.reply(text)  # TODO(Notify all fedadmins)
+        await event.client(EditBannedRequest(
+            event.chat_id,
+            user['user_id'],
+            banned_rights
+        ))
+
+    except Exception:
+        pass
+
+    mongodb.fbanned_users.insert_one({'user': user['user_id'], 'fed_id': fed['fed_id'],
+                                      'reason': reason})
+    await event.reply(text)  # TODO(Notify all fedadmins)
+
+
+@decorator.command('unfban', word_arg=True, additional=" ?(\S*) ?(.*)")
+@get_strings_dec("feds")
+@get_user_and_fed_and_text_dec
+@user_is_fed_admin
+async def unfban_user(event, user, fed, reason, strings):
+    from_id = event.from_id
+
+    bot_id = await bot.get_me()
+    bot_id = bot_id.id
+    if user == bot_id:
+        await event.reply(strings['unfban_self'])
+        return
+
+    check = mongodb.fbanned_users.find_one({'user': user['user_id'], 'fed_id': fed['fed_id']})
+    if not check:
+        await event.reply(strings['user_not_fbanned'].format(
+                          user=await user_link(user['user_id'])))
+        return
+
+    fed_chats = mongodb.fed_groups.find({'fed_id': fed['fed_id']})
+
+    msg = await event.reply(strings["unfban_started"].format(
+        user=await user_link(user['user_id']),
+        fed_name=fed["fed_name"],
+        admin=await user_link(from_id)
+    ))
+
+    for chat in fed_chats:
+        await asyncio.sleep(1)  # Do not slow down other updates
+        try:
+            unbanned_rights = ChatBannedRights(
+                until_date=None,
+                view_messages=False,
+                send_messages=False,
+                send_media=False,
+                send_stickers=False,
+                send_gifs=False,
+                send_games=False,
+                send_inline=False,
+                embed_links=False,
+            )
+
+            await event.client(EditBannedRequest(
+                chat['chat_id'],
+                user['user_id'],
+                unbanned_rights
+            ))
+
+        except Exception as err:
+            logger.error(err)
+
+    mongodb.fbanned_users.delete_one({'_id': check['_id']})
+
+    await msg.edit(strings["unfban_completed"].format(
+        user=await user_link(user['user_id']),
+        fed_name=fed["fed_name"],
+        admin=await user_link(from_id)
+    ))
+
+
+@decorator.command('subfed', arg=True)
+@get_strings_dec('feds')
+async def subfed(event, strings):
+    chat = event.chat_id
+
+    chat_fed = mongodb.fed_groups.find_one({'chat_id': chat})
+    if not chat_fed:  # find chatfed
+        await event.reply(strings['no_fed_2'])
+        return
+
+    fed_id = chat_fed['fed_id']
+    user = event.from_id
+    creator = mongodb.fed_list.find_one({'fed_id': fed_id})
+    creator = creator['creator']
+    if int(user) != int(creator):  # only fed creator can subscribe
+        await event.reply(strings['only_creator'])
+        return
+
+    if not event.pattern_match.group(1):  # check if fed id given
+        await event.reply(strings['no_arg_given'])
+        return
+
+    subfed_id = event.pattern_match.group(1)  # get details of subscribing fed id and check fed id
+    check1 = mongodb.fed_list.find_one({'fed_id': subfed_id})
+    if not check1:
+        await event.reply(strings['invalid_fedid'])
+        return
+
+    data = {'fed_id': fed_id, 'subfed_id': subfed_id}
+    check = mongodb.subfed_list.find_one(data)
+    if check:
+        await event.reply(strings['already_subfed'])
+        return
+
+    fedname = check1['fed_name']
+    await event.reply(strings['subfed_success'].format(fedname=fedname))
+    mongodb.subfed_list.insert_one(data)
+
+
+@decorator.command('unsubfed', arg=True)
+@get_strings_dec('feds')
+async def unsubfed(event, strings):
+    chat = event.chat_id
+
+    chatfed = mongodb.fed_groups.find_one({'chat_id': chat})
+    if not chatfed:
+        await event.reply(strings['no_fed_3'])
+        return
+
+    fed_id = chatfed['fed_id']
+    user = event.from_id
+    creator = mongodb.fed_list.find_one({'fed_id': fed_id})
+    creator = creator['creator']
+    if int(user) != int(creator):
+        await event.reply(strings['only_creator_2'])
+        return
+
+    if not event.pattern_match.group(1):
+        await event.reply(strings['no_arg_given_2'])
+        return
+
+    subfed = event.pattern_match.group(1)
+    data = {'fed_id': fed_id, 'subfed_id': subfed}
+    check = mongodb.subfed_list.find_one(data)
+    if not check:
+        await event.reply(strings["fed_n'tsubscribed"])
+        return
+
+    check = mongodb.fed_list.find_one({'fed_id': fed_id})
+    fedname = check['fed_name']
+    await event.reply(strings['unsub_success'].format(fedname=fedname))
+    mongodb.subfed_list.delete_one(data)
+
+
+@decorator.command('fedsubs')
+@get_strings_dec('feds')
+@user_is_fed_admin
+async def subfedlist(event, strings):
+    chat = event.chat_id
+
+    chatfed = mongodb.fed_groups.find_one({'chat_id': chat})
+    if not chatfed:
+        await event.reply(strings['no_fed_4'])
+        return
+
+    fed_id = chatfed['fed_id']
+    subfeds = mongodb.subfed_list.find({'fed_id': fed_id})
+    if subfeds.count() == 0:
+        await event.reply(strings['no_subfeds'])
+        return
+
+    for subfed in subfeds:
+        fed_details = mongodb.fed_list.find_one({'fed_id': subfed['subfed_id']})
+        fedname = fed_details['fed_name']
+
+        text = strings['list_head']
+        text += strings['list_data'].format(fedname=fedname)
+
+        await event.reply(text)
+
+
+@decorator.command("fsave", word_arg=True)
+@user_admin_dec
+@connection(admin=True)
+@get_chat_fed_dec(allow_no_fed=True)
+@get_strings_dec("notes")
+async def fed_save_note(event, strings, fed, status, chat_id, chat_title):
+    note_name, file_id, note_text = await save_get_new_note(event, strings, chat_id)
+
+    fed_chats = mongodb.fed_groups.find({'fed_id': fed['fed_id']})
+
+    for chat in fed_chats:
+        old = mongodb.notes.find_one({'chat_id': chat['chat_id'], 'name': note_name})
+        if old:
+            real_chat = mongodb.chat_list.find_one({'chat_id': chat['chat_id']})
+            await event.reply(strings["note_already_in_chat"].format(
+                note_name=note_name, chat_name=real_chat['chat_title']))
+            return
+
+    status = strings["saved"]
+    old = mongodb.fed_notes.find_one({'fed_id': fed["fed_id"], "name": note_name})
+    date = strftime("%Y-%m-%d %H:%M:%S", gmtime())
+    created_date = date
+    creator = None
+    if old:
+        if 'created' in old:
+            created_date = old['created']
+        if 'creator' in old:
+            creator = old['creator']
+        status = strings["updated"]
+
+    if not creator:
+        creator = event.from_id
+
+    new = {'fed_id': fed["fed_id"],
+           'name': note_name,
+           'text': note_text,
+           'date': date,
+           'created': created_date,
+           'updated_by': event.from_id,
+           'creator': creator,
+           'file_id': file_id}
+
+    buttons = None
+
+    if old:
+        mongodb.fed_notes.update_one({'_id': old['_id']}, {"$set": new}, upsert=False)
+        new = None
+    else:
+        new = mongodb.fed_notes.insert_one(new).inserted_id
+
+        buttons = [
+            [Button.inline(strings["del_note"], 'delnote_{}'.format(new))]
+        ]
+
+    text = strings["note_saved_or_updated_in_fed"].format(
+        note_name=note_name, status=status, fed_name=fed['fed_name'])
+    text += strings["you_can_get_note"].format(name=note_name)
+
+    await event.reply(text, buttons=buttons)
+
+
+# Functions
 
 
 async def join_fed(event, chat_id, fed_id, user):
@@ -291,3 +546,122 @@ async def leave_fed(event, chat_id, user):
         return
 
     return True
+
+
+@decorator.insurgent()
+@get_strings_dec('feds')
+async def fban_helper(event, strings):
+    user = event.from_id
+    chat = event.chat_id
+
+    chat_fed = mongodb.fed_groups.find_one({'chat_id': chat})
+    if not chat_fed:
+        return
+
+    if await is_user_admin(chat, user) is True:
+        return
+
+    if str(user) in WHITELISTED:
+        return
+
+    fed_id = chat_fed['fed_id']
+    fed_name = mongodb.fed_list.find_one({'fed_id': fed_id})
+    if not fed_name:
+        return
+    fed_name = fed_name['fed_name']
+
+    is_banned = mongodb.fbanned_users.find_one({'user': user, 'fed_id': fed_id})
+    if not is_banned:
+        return
+
+    banned_rights = ChatBannedRights(
+        until_date=None,
+        view_messages=True,
+        send_messages=True,
+        send_media=True,
+        send_stickers=True,
+        send_gifs=True,
+        send_games=True,
+        send_inline=True,
+        embed_links=True,
+    )
+
+    try:
+        ban = await event.client(EditBannedRequest(
+            chat,
+            user,
+            banned_rights
+        ))
+
+        if ban:
+            await event.respond(strings['fban_usr_rmvd'].format(
+                fed=fed_name,
+                user=await user_link(user),
+                rsn=is_banned['reason']
+            ))
+
+    except Exception:
+        pass
+
+
+@decorator.ChatAction()
+@get_strings_dec('feds')
+async def fban_helper_2(event, strings):
+    if event.user_joined is True or event.user_added is True:
+        if hasattr(event.action_message.action, 'users'):
+            from_id = event.action_message.action.users[0]
+        else:
+            from_id = event.action_message.from_id
+    else:
+        return  # ?
+
+    chat = event.chat_id
+
+    chat_fed = mongodb.fed_groups.find_one({'chat_id': chat})
+    if not chat_fed:
+        return
+
+    if await is_user_admin(chat, from_id) is True:
+        return
+
+    if str(from_id) in WHITELISTED:
+        return
+
+    fed_id = chat_fed['fed_id']
+    fed_name = mongodb.fed_list.find_one({'fed_id': fed_id})
+    if not fed_name:
+        return
+    fed_name = fed_name['fed_name']
+
+    is_banned = mongodb.fbanned_users.find_one({'user': from_id, 'fed_id': fed_id})
+    if not is_banned:
+        return
+
+    banned_rights = ChatBannedRights(
+        until_date=None,
+        view_messages=True,
+        send_messages=True,
+        send_media=True,
+        send_stickers=True,
+        send_gifs=True,
+        send_games=True,
+        send_inline=True,
+        embed_links=True,
+    )
+
+    try:
+        ban = await event.client(EditBannedRequest(
+            chat,
+            from_id,
+            banned_rights
+        ))
+
+        if ban:
+            await event.respond(strings['fban_usr_rmvd'].format(
+                fed=fed_name,
+                user=await user_link(from_id),
+                rsn=is_banned['reason']
+            ))
+
+    except Exception:
+        pass
