@@ -1,15 +1,19 @@
 from ftplib import FTP
+from time import gmtime, strftime
 import ujson
 import os
 
 from telethon import custom
 
-from sophie_bot import OWNER_ID, CONFIG, decorator, logger
+from sophie_bot import CONFIG, decorator, logger, bot
 from sophie_bot.modules.helper_func.flood import flood_limit_dec
 
 ftp_url = "ftp.orangefox.website"
 fox_groups = [483808054, -1001287179850, -1001280218923, -1001155400138, -1001362128194]
 fox_beta_groups = [483808054, -1001280218923, -1001362128194]
+fox_dev_chats = [-1001155400138, 483808054]
+
+BETA_CHANNEL = -1001429093106
 
 global DEVICES_STABLE
 global DEVICES_BETA
@@ -17,11 +21,42 @@ global DEVICES_BETA
 DEVICES_STABLE = {}
 DEVICES_BETA = {}
 
+NEW_BETA_TEXT = """🦊 **OrangeFox R10 Beta**
+`{ver}`
 
-def update_devices():
+📱 {fullname} ({codename})
+📅 Date: `{modified}`
+
+👤 Maintainer: {maintainer}
+{msg}
+ℹ️ ChangeLog:
+    {changelog}
+
+💬 **Beta testing group:** [join](https://t.me/joinchat/HNZTNha1iBzpX-_33EdEsg)"""
+
+NEW_STABLE_TEXT = """🦊 **OrangeFox R10 Stable**
+`{ver}`
+
+📱 {fullname} ({codename})
+📅 Date: `{modified}`
+
+👤 Maintainer: {maintainer}
+{msg}
+ℹ️ ChangeLog:
+    {changelog}
+
+💬 **OrangeFox chat:** [join](https://t.me/joinchat/HNZTNky4zkpWc7na_-Beow)"""
+
+
+async def update_devices():
     logger.info("Update info about OrangeFox builds..")
     global DEVICES_STABLE
     global DEVICES_BETA
+
+    f = open("update.json", "r")
+    jfile = ujson.load(f)
+    old_beta = jfile['beta']
+    old_stable = jfile['stable']
 
     ftp = FTP(ftp_url, CONFIG['advanced']['ofox_ftp_user'], CONFIG['advanced']['ofox_ftp_pass'])
 
@@ -59,6 +94,20 @@ def update_devices():
                 modified = facts['modify']
                 done = 1
 
+        mm = list(ftp.mlsd(f"OrangeFox-Beta/{device}/{last_build[:-4]}.txt"))
+        if mm:
+            lchangelog = []
+            ftp.retrlines(f'RETR OrangeFox-Beta/{device}/{last_build[:-4]}.txt',
+                          lchangelog.append)
+            changelog = ""
+            for string in lchangelog:
+                changelog += str(string) + "\n"
+                DEVICES_BETA[device]['changelog'] = str(changelog)
+            changelog_file = f"{last_build[:-4]}.txt"
+        else:
+            DEVICES_BETA[device]['changelog'] = None
+            changelog_file = None
+
         DEVICES_STABLE[device] = {
             "codename": codename,
             "fullname": fullname,
@@ -66,8 +115,23 @@ def update_devices():
             "ver": last_build,
             "modified": modified,
             "readme": readme,
-            "msg": msg
+            "msg": msg,
+            "changelog": changelog_file
         }
+
+        # Check on update
+        if int(modified) > int(old_stable[device]['modified']):
+            logger.info(f'Stable - new update of {codename} detected.')
+            link = 'https://files.orangefox.website/OrangeFox-Stable/' + device + "/" + last_build
+
+            await bot.send_message(
+                BETA_CHANNEL,
+                NEW_STABLE_TEXT.format_map(DEVICES_STABLE[device]),
+                buttons=[[custom.Button.url(
+                    "⬇️ Download this build", link
+                )]],
+                link_preview=False
+            )
 
     data = ftp.mlsd("OrangeFox-Beta", ["type"])
     for device, facts in data:
@@ -104,6 +168,21 @@ def update_devices():
                 modified = facts['modify']
                 done = 1
 
+        mm = list(ftp.mlsd(f"OrangeFox-Beta/{device}/{last_build[:-4]}.txt"))
+        if mm:
+            print('changelog')
+            lchangelog = []
+            ftp.retrlines(f'RETR OrangeFox-Beta/{device}/{last_build[:-4]}.txt',
+                          lchangelog.append)
+            changelog = ""
+            for string in lchangelog:
+                changelog += str(string) + "\n"
+                DEVICES_BETA[device]['changelog'] = str(changelog)
+            changelog_file = f"{last_build[:-4]}.txt"
+        else:
+            DEVICES_BETA[device]['changelog'] = None
+            changelog_file = None
+
         DEVICES_BETA[device] = {
             "codename": codename,
             "fullname": fullname,
@@ -111,13 +190,30 @@ def update_devices():
             "ver": last_build,
             "modified": modified,
             "readme": readme,
-            "msg": msg
+            "msg": msg,
+            "changelog": changelog_file
         }
+
+        # Check on update
+        if int(modified) > int(old_beta[device]['modified']):
+            logger.info(f'BETA - new update of {codename} detected.')
+            link = 'https://files.orangefox.website/OrangeFox-Beta/' + device + "/" + last_build
+
+            await bot.send_message(
+                BETA_CHANNEL,
+                NEW_BETA_TEXT.format_map(DEVICES_BETA[device]),
+                buttons=[[custom.Button.url(
+                    "⬇️ Download this Beta", link
+                )]],
+                link_preview=False
+            )
+
+    date = strftime("%Y-%m-%d %H:%M:%S", gmtime())
 
     JSON_FILE = {
         'stable': DEVICES_STABLE,
         'beta': DEVICES_BETA,
-        'json_file_info': {"ver": 3}
+        'json_file_info': {"ver": 4, "generated_date": date}
     }
     f = open("update.json", "w+")
 
@@ -126,19 +222,27 @@ def update_devices():
     with open('update.json', 'rb') as f:
         ftp.storbinary('STOR %s' % 'Others/update.json', f)
 
+    ftp.quit()
     logger.info("Done!")
 
 
 # Main
-update_devices()
+f = open("update.json", "r")
+jfile = ujson.load(f)
+DEVICES_STABLE = jfile['stable']
+DEVICES_BETA = jfile['beta']
+
 print(DEVICES_STABLE)
 print(DEVICES_BETA)
 
 
-@decorator.command("update", from_users=OWNER_ID)
+@decorator.command("update")
 async def do_update_devices(event):
-    update_devices()
-    await event.reply("Done")
+    if event.chat_id not in fox_dev_chats:
+        return
+    msg = await event.reply("Updating...")
+    await update_devices()
+    await msg.edit('Done!')
 
 
 @decorator.command("list")
