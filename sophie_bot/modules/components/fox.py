@@ -31,8 +31,7 @@ NEW_BETA_TEXT = """🦊 **OrangeFox R10 Beta**
 👤 Maintainer: {maintainer}
 {msg}
 ℹ️ ChangeLog:
-    {changelog}
-
+{changelog}
 💬 **Beta testing group:** [join](https://t.me/joinchat/HNZTNha1iBzpX-_33EdEsg)"""
 
 NEW_STABLE_TEXT = """🦊 **OrangeFox R10 Stable**
@@ -44,8 +43,7 @@ NEW_STABLE_TEXT = """🦊 **OrangeFox R10 Stable**
 👤 Maintainer: {maintainer}
 {msg}
 ℹ️ ChangeLog:
-    {changelog}
-
+{changelog}
 💬 **OrangeFox chat:** [join](https://t.me/joinchat/HNZTNky4zkpWc7na_-Beow)"""
 
 
@@ -72,7 +70,7 @@ async def update_devices():
         codename = info_file[0].split(': ')[1]
         fullname = info_file[1].split(': ')[1]
         maintainer = info_file[2].split(': ')[1]
-        msg = None
+        msg = ""
         print(len(info_file))
         if len(info_file) >= 4:
             msg = info_file[3].split(': ')[1]
@@ -95,15 +93,16 @@ async def update_devices():
                 modified = facts['modify']
                 done = 1
 
-        mm = list(ftp.mlsd(f"OrangeFox-Beta/{device}/{last_build[:-4]}.txt"))
+        mm = list(ftp.mlsd(f"OrangeFox-Stable/{device}/{last_build[:-4]}.txt"))
         if mm:
             lchangelog = []
-            ftp.retrlines(f'RETR OrangeFox-Beta/{device}/{last_build[:-4]}.txt',
+            ftp.retrlines(f'RETR OrangeFox-Stable/{device}/{last_build[:-4]}.txt',
                           lchangelog.append)
             changelog = ""
-            for string in lchangelog:
-                changelog += str(string) + "\n"
-                changelog = str(changelog)
+            for owo in lchangelog:
+                if changelog:
+                    changelog += '\n'
+                changelog += "  " + str(owo)
             changelog_file = f"{last_build[:-4]}.txt"
         else:
             changelog = None
@@ -169,16 +168,16 @@ async def update_devices():
                 modified = facts['modify']
                 done = 1
 
-        mm = list(ftp.mlsd(f"OrangeFox-Beta/{device}/{last_build[:-4]}.txt"))
+        mm = list(ftp.mlsd(f"OrangeFox-Stable/{device}/{last_build[:-4]}.txt"))
         if mm:
-            print('changelog')
             lchangelog = []
-            ftp.retrlines(f'RETR OrangeFox-Beta/{device}/{last_build[:-4]}.txt',
+            ftp.retrlines(f'RETR OrangeFox-Stable/{device}/{last_build[:-4]}.txt',
                           lchangelog.append)
             changelog = ""
-            for string in lchangelog:
-                changelog += str(string) + "\n"
-                changelog = str(changelog)
+            for owo in lchangelog:
+                if changelog:
+                    changelog += '\n'
+                changelog += "  " + str(owo)
             changelog_file = f"{last_build[:-4]}.txt"
         else:
             changelog = None
