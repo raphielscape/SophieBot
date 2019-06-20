@@ -14,6 +14,7 @@ fox_beta_groups = [483808054, -1001280218923, -1001362128194]
 fox_dev_chats = [-1001155400138, 483808054]
 
 BETA_CHANNEL = -1001429093106
+STABLE_CHANNEL = 483808054
 
 global DEVICES_STABLE
 global DEVICES_BETA
@@ -116,7 +117,7 @@ async def update_devices():
             "modified": modified,
             "readme": readme,
             "msg": msg,
-            "changelog": changelog_file
+            "changelog": changelog
         }
 
         # Check on update
@@ -125,7 +126,7 @@ async def update_devices():
             link = 'https://files.orangefox.website/OrangeFox-Stable/' + device + "/" + last_build
 
             await bot.send_message(
-                BETA_CHANNEL,
+                STABLE_CHANNEL,
                 NEW_STABLE_TEXT.format_map(DEVICES_STABLE[device]),
                 buttons=[[custom.Button.url(
                     "⬇️ Download this build", link
@@ -191,7 +192,7 @@ async def update_devices():
             "modified": modified,
             "readme": readme,
             "msg": msg,
-            "changelog": changelog_file
+            "changelog": changelog
         }
 
         # Check on update
