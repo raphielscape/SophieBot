@@ -103,10 +103,10 @@ async def update_devices():
             changelog = ""
             for string in lchangelog:
                 changelog += str(string) + "\n"
-                DEVICES_BETA[device]['changelog'] = str(changelog)
+                changelog = str(changelog)
             changelog_file = f"{last_build[:-4]}.txt"
         else:
-            DEVICES_BETA[device]['changelog'] = None
+            changelog = None
             changelog_file = None
 
         DEVICES_STABLE[device] = {
@@ -178,10 +178,10 @@ async def update_devices():
             changelog = ""
             for string in lchangelog:
                 changelog += str(string) + "\n"
-                DEVICES_BETA[device]['changelog'] = str(changelog)
+                changelog = str(changelog)
             changelog_file = f"{last_build[:-4]}.txt"
         else:
-            DEVICES_BETA[device]['changelog'] = None
+            changelog = None
             changelog_file = None
 
         DEVICES_BETA[device] = {
