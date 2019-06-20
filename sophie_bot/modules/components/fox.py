@@ -14,7 +14,7 @@ fox_beta_groups = [483808054, -1001280218923, -1001362128194]
 fox_dev_chats = [-1001155400138, 483808054]
 
 BETA_CHANNEL = -1001429093106
-STABLE_CHANNEL = -1001196811863
+STABLE_CHANNEL = 483808054
 
 global DEVICES_STABLE
 global DEVICES_BETA
@@ -120,7 +120,8 @@ async def update_devices():
         }
 
         # Check on update
-        if int(modified) > int(old_stable[device]['modified']):
+        print(codename in old_stable)
+        if codename not in old_stable or int(modified) > int(old_stable[device]['modified']):
             logger.info(f'Stable - new update of {codename} detected.')
             link = 'https://files.orangefox.website/OrangeFox-Stable/' + device + "/" + last_build
 
@@ -195,7 +196,7 @@ async def update_devices():
         }
 
         # Check on update
-        if int(modified) > int(old_beta[device]['modified']):
+        if codename not in old_beta or int(modified) > int(old_beta[device]['modified']):
             logger.info(f'BETA - new update of {codename} detected.')
             link = 'https://files.orangefox.website/OrangeFox-Beta/' + device + "/" + last_build
 
