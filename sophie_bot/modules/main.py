@@ -2,9 +2,7 @@ import asyncio
 import math
 import subprocess
 
-from sophie_bot import decorator, mongodb, dp, tbot
-from sophie_bot.modules.disable import disablable_dec
-from sophie_bot.modules.helper_func.flood import flood_limit_dec
+from sophie_bot import mongodb, dp, tbot
 
 from aiogram import types
 
