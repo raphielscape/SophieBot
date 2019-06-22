@@ -7,7 +7,10 @@ from telethon.tl.functions.users import GetFullUserRequest
 from telethon import custom, errors
 from telethon.tl.custom import Button
 
-from sophie_bot import BOT_USERNAME, tbot, decorator, mongodb, logger
+from aiogram.dispatcher import Dispatcher, filters
+from aiogram import types
+
+from sophie_bot import BOT_USERNAME, tbot, decorator, mongodb, logger, dp
 from sophie_bot.modules.connections import connection, get_conn_chat
 from sophie_bot.modules.disable import disablable_dec
 from sophie_bot.modules.helper_func.flood import flood_limit_dec
@@ -253,18 +256,20 @@ async def get_note(event, status, chat_id, chat_title):
             show_none=True, noformat=noformat, from_id=event.from_id)
 
 
-@decorator.StrictCommand("^#(.*)")
-@connection()
-async def check_hashtag(event, status, chat_id, chat_title):
-    status, chat_id, chat_title = await get_conn_chat(event.from_id, event.chat_id)
+@dp.message_handler(regexp="#(\w+)")
+@dp.edited_message_handler(regexp="#(\w+)")
+async def check_hashtag(message: types.Message):
+    print(message)
+    status, chat_id, chat_title = await get_conn_chat(message['from']['id'], message['chat']['id'])
     if status is False:
-        await event.reply(chat_id)
+        await message.reply(chat_id)
         return
-    note_name = event.message.raw_text[1:].lower()
+    note_name = message['text'][1:].split(" ", 2)[0].lower()
+    print(note_name)
     if len(note_name) >= 1:
         await send_note(
-            event.chat_id, chat_id, event.message.id, note_name,
-            from_id=event.from_id)
+            message['chat']['id'], chat_id, message['message_id'], note_name,
+            from_id=message['from']['id'])
 
 
 def button_parser(chat_id, texts):
