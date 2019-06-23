@@ -261,7 +261,6 @@ async def get_note(message):
 @dp.message_handler(regexp="#(\w+)")
 @dp.edited_message_handler(regexp="#(\w+)")
 async def check_hashtag(message: types.Message):
-    print(message)
     status, chat_id, chat_title = await get_conn_chat(message['from']['id'], message['chat']['id'])
     if status is False:
         await message.reply(chat_id)
