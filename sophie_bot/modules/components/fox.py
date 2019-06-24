@@ -2,7 +2,6 @@ from ftplib import FTP
 from time import gmtime, strftime
 import ujson
 import os
-import asyncio
 
 from telethon import custom
 
@@ -14,8 +13,8 @@ fox_groups = [483808054, -1001287179850, -1001280218923, -1001155400138, -100136
 fox_beta_groups = [483808054, -1001280218923, -1001362128194]
 fox_dev_chats = [-1001155400138, 483808054]
 
-BETA_CHANNEL = -1001429093106
-STABLE_CHANNEL = -1001196811863
+BETA_CHANNEL = 483808054
+STABLE_CHANNEL = 483808054
 
 global DEVICES_STABLE
 global DEVICES_BETA
@@ -54,12 +53,8 @@ async def update_devices(event):
         return
 
     logger.info("Update info about OrangeFox builds..")
-    msg = await event.reply("Updating...")
     global DEVICES_STABLE
     global DEVICES_BETA
-
-    len_stable_devices = len(DEVICES_STABLE)
-    len_beta_devices = len(DEVICES_BETA)
 
     DEVICES_STABLE = {}
     DEVICES_BETA = {}
@@ -69,162 +64,175 @@ async def update_devices(event):
         old_beta = jfile['beta']
         old_stable = jfile['stable']
     else:
+        await event.reply("update.json didn't found in the bot directory, regenerating...")
         old_beta = []
         old_stable = []
 
+    len_stable_devices = len(old_stable)
+    len_beta_devices = len(old_beta)
+
+    released_stable = ""
+    released_beta = ""
+
     ftp = FTP(ftp_url, CONFIG['advanced']['ofox_ftp_user'], CONFIG['advanced']['ofox_ftp_pass'])
 
-    await msg.edit("Updating Stable devices..")
+    Omsg = await event.reply("Updating Stable devices..")
     data = ftp.mlsd("OrangeFox-Stable", ["type"])
     for device, facts in data:
-        if not facts["type"] == "dir":
-            continue
-
-        info_file = []
-        ftp.retrlines(f'RETR OrangeFox-Stable/{device}/device_info.txt', info_file.append)
-
-        codename = info_file[0].split(': ')[1]
-        fullname = info_file[1].split(': ')[1]
-        maintainer = info_file[2].split(': ')[1]
-        msg = ""
-        print(len(info_file))
-        if len(info_file) >= 4:
-            msg = info_file[3].split(': ')[1]
-
-        builds = list(ftp.mlsd("OrangeFox-Stable/" + device, ["type"]))
-        builds.sort(key=lambda entry: entry[1]['modify'], reverse=True)
-        readme = None
-        done = 0
-        for build, facts in builds:
-            logger.debug(build)
-            if not facts["type"] == "file":
-                continue
-            elif build == "README.md":
-                readme = "README.md"
+        try:
+            if not facts["type"] == "dir":
                 continue
 
-            ext = os.path.splitext(build)[1]
-            if ext == '.zip' and done == 0:
-                last_build = build
-                modified = facts['modify']
-                done = 1
+            info_file = []
+            ftp.retrlines(f'RETR OrangeFox-Stable/{device}/device_info.txt', info_file.append)
 
-        mm = list(ftp.mlsd(f"OrangeFox-Stable/{device}/{last_build[:-4]}.txt"))
-        if mm:
-            lchangelog = []
-            ftp.retrlines(f'RETR OrangeFox-Stable/{device}/{last_build[:-4]}.txt',
-                          lchangelog.append)
-            changelog = ""
-            for owo in lchangelog:
-                if changelog:
-                    changelog += '\n'
-                changelog += "  " + str(owo)
-            # changelog_file = f"{last_build[:-4]}.txt"
-        else:
-            changelog = None
-            # changelog_file = None
+            codename = info_file[0].split(': ')[1]
+            fullname = info_file[1].split(': ')[1]
+            maintainer = info_file[2].split(': ')[1]
+            msg = ""
+            if len(info_file) >= 4:
+                msg = info_file[3].split(': ')[1]
 
-        DEVICES_STABLE[device] = {
-            "codename": codename,
-            "fullname": fullname,
-            "maintainer": maintainer,
-            "ver": last_build,
-            "modified": modified,
-            "readme": readme,
-            "msg": msg,
-            "changelog": changelog
-        }
+            builds = list(ftp.mlsd("OrangeFox-Stable/" + device, ["type"]))
+            builds.sort(key=lambda entry: entry[1]['modify'], reverse=True)
+            readme = None
+            done = 0
+            for build, facts in builds:
+                logger.debug(build)
+                if not facts["type"] == "file":
+                    continue
+                elif build == "README.md":
+                    readme = "README.md"
+                    continue
 
-        # Check on update
-        print(codename in old_stable)
-        if codename not in old_stable or int(modified) > int(old_stable[device]['modified']):
-            logger.info(f'Stable - new update of {codename} detected.')
-            link = 'https://files.orangefox.website/OrangeFox-Stable/' + device + "/" + last_build
+                ext = os.path.splitext(build)[1]
+                if ext == '.zip' and done == 0:
+                    last_build = build
+                    modified = facts['modify']
+                    done = 1
 
-            await tbot.send_message(
-                STABLE_CHANNEL,
-                NEW_STABLE_TEXT.format_map(DEVICES_STABLE[device]),
-                buttons=[[custom.Button.url(
-                    "⬇️ Download this build", link
-                )]],
-                link_preview=False
-            )
+            mm = list(ftp.mlsd(f"OrangeFox-Stable/{device}/{last_build[:-4]}.txt"))
+            if mm:
+                lchangelog = []
+                ftp.retrlines(f'RETR OrangeFox-Stable/{device}/{last_build[:-4]}.txt',
+                              lchangelog.append)
+                changelog = ""
+                for owo in lchangelog:
+                    if changelog:
+                        changelog += '\n'
+                    changelog += "  " + str(owo)
+                # changelog_file = f"{last_build[:-4]}.txt"
+            else:
+                changelog = None
+                # changelog_file = None
 
-    await msg.edit("Updating Beta devices..")
+            DEVICES_STABLE[device] = {
+                "codename": codename,
+                "fullname": fullname,
+                "maintainer": maintainer,
+                "ver": last_build,
+                "modified": modified,
+                "readme": readme,
+                "msg": msg,
+                "changelog": changelog
+            }
+
+            # Check on update
+            if codename not in old_stable or int(modified) > int(old_stable[device]['modified']):
+                released_stable += f"{codename} "
+                logger.info(f'Stable - new update of {codename} detected.')
+                link = 'https://files.orangefox.website/OrangeFox-Stable/' + device + "/" + last_build
+
+                await tbot.send_message(
+                    STABLE_CHANNEL,
+                    NEW_STABLE_TEXT.format_map(DEVICES_STABLE[device]),
+                    buttons=[[custom.Button.url(
+                        "⬇️ Download this build", link
+                    )]],
+                    link_preview=False
+                )
+        except Exception as err:
+            await event.reply(msg(err))
+            logger.error(err)
+
+    await Omsg.edit("Updating Beta devices..")
     data = ftp.mlsd("OrangeFox-Beta", ["type"])
     for device, facts in data:
-        if not facts["type"] == "dir":
-            continue
-
-        info_file = []
-        ftp.retrlines(f'RETR OrangeFox-Beta/{device}/device_info.txt', info_file.append)
-
-        codename = info_file[0].split(': ')[1]
-        fullname = info_file[1].split(': ')[1]
-        maintainer = info_file[2].split(': ')[1]
-        msg = None
-        print(device)
-        print(len(info_file))
-        if len(info_file) >= 4:
-            msg = info_file[3].split(': ')[1]
-
-        builds = list(ftp.mlsd("OrangeFox-Beta/" + device, ["type"]))
-        builds.sort(key=lambda entry: entry[1]['modify'], reverse=True)
-        readme = None
-        done = 0
-        for build, facts in builds:
-            logger.debug(build)
-            if not facts["type"] == "file":
-                continue
-            elif build == "README.md":
-                readme = "README.md"
+        try:
+            if not facts["type"] == "dir":
                 continue
 
-            ext = os.path.splitext(build)[1]
-            if ext == '.zip' and done == 0:
-                last_build = build
-                modified = facts['modify']
-                done = 1
+            info_file = []
+            ftp.retrlines(f'RETR OrangeFox-Beta/{device}/device_info.txt', info_file.append)
 
-        mm = list(ftp.mlsd(f"OrangeFox-Stable/{device}/{last_build[:-4]}.txt"))
-        if mm:
-            lchangelog = []
-            ftp.retrlines(f'RETR OrangeFox-Stable/{device}/{last_build[:-4]}.txt',
-                          lchangelog.append)
-            changelog = ""
-            for owo in lchangelog:
-                if changelog:
-                    changelog += '\n'
-                changelog += "  " + str(owo)
-            # changelog_file = f"{last_build[:-4]}.txt"
-        else:
-            changelog = None
-            # changelog_file = None
+            codename = info_file[0].split(': ')[1]
+            fullname = info_file[1].split(': ')[1]
+            maintainer = info_file[2].split(': ')[1]
+            msg = None
+            if len(info_file) >= 4:
+                msg = info_file[3].split(': ')[1]
 
-        DEVICES_BETA[device] = {
-            "codename": codename,
-            "fullname": fullname,
-            "maintainer": maintainer,
-            "ver": last_build,
-            "modified": modified,
-            "readme": readme,
-            "msg": msg,
-            "changelog": changelog
-        }
+            builds = list(ftp.mlsd("OrangeFox-Beta/" + device, ["type"]))
+            builds.sort(key=lambda entry: entry[1]['modify'], reverse=True)
+            readme = None
+            done = 0
+            for build, facts in builds:
+                logger.debug(build)
+                if not facts["type"] == "file":
+                    continue
+                elif build == "README.md":
+                    readme = "README.md"
+                    continue
 
-        # Check on update
-        if codename not in old_beta or int(modified) > int(old_beta[device]['modified']):
-            logger.info(f'BETA - new update of {codename} detected.')
-            link = 'https://files.orangefox.website/OrangeFox-Beta/' + device + "/" + last_build
+                ext = os.path.splitext(build)[1]
+                if ext == '.zip' and done == 0:
+                    last_build = build
+                    modified = facts['modify']
+                    done = 1
 
-            await tbot.send_message(
-                BETA_CHANNEL,
-                NEW_BETA_TEXT.format_map(DEVICES_BETA[device]),
-                buttons=[[custom.Button.url(
-                    "⬇️ Download this Beta", link
-                )]],
-                link_preview=False
-            )
+            mm = list(ftp.mlsd(f"OrangeFox-Stable/{device}/{last_build[:-4]}.txt"))
+            if mm:
+                lchangelog = []
+                ftp.retrlines(f'RETR OrangeFox-Stable/{device}/{last_build[:-4]}.txt',
+                              lchangelog.append)
+                changelog = ""
+                for owo in lchangelog:
+                    if changelog:
+                        changelog += '\n'
+                    changelog += "  " + str(owo)
+                # changelog_file = f"{last_build[:-4]}.txt"
+            else:
+                changelog = None
+                # changelog_file = None
+
+            DEVICES_BETA[device] = {
+                "codename": codename,
+                "fullname": fullname,
+                "maintainer": maintainer,
+                "ver": last_build,
+                "modified": modified,
+                "readme": readme,
+                "msg": msg,
+                "changelog": changelog
+            }
+
+            # Check on update
+            if codename not in old_beta or int(modified) > int(old_beta[device]['modified']):
+                released_beta += f"{codename} "
+                logger.info(f'BETA - new update of {codename} detected.')
+                link = 'https://files.orangefox.website/OrangeFox-Beta/' + device + "/" + last_build
+
+                await tbot.send_message(
+                    BETA_CHANNEL,
+                    NEW_BETA_TEXT.format_map(DEVICES_BETA[device]),
+                    buttons=[[custom.Button.url(
+                        "⬇️ Download this Beta", link
+                    )]],
+                    link_preview=False
+                )
+        except Exception as err:
+            await event.reply(msg(err))
+            logger.error(err)
 
     date = strftime("%Y-%m-%d %H:%M:%S", gmtime())
 
@@ -246,20 +254,13 @@ async def update_devices(event):
     new_len_stable_devices = len(DEVICES_STABLE)
     new_len_beta_devices = len(DEVICES_BETA)
 
-    text = "Done!"
-    text += "\n- Beta devices: "
-    m = new_len_beta_devices + len_beta_devices
-    if m > 0:
-        text += "`+ " + m + "` devices"
-    else:
-        text += "`" + m + "` devices"
+    text = "Done!\n"
+    if released_stable:
+        text += f"Stable updates released:\n{released_stable}\n"
+    if released_beta:
+        text += f"Beta updates released:\n{released_beta}"
 
-    text += "\n- Stable devices: "
-    m = new_len_stable_devices + len_stable_devices
-    if m > 0:
-        text += "`+ " + m + "` devices"
-    else:
-        text += "`" + m + "` devices"
+    await Omsg.edit(text)
 
     logger.info(text)
 
@@ -331,7 +332,7 @@ async def check(event):
             text += "\n🗒️ Notes:\n" + device['msg']
         buttons.append([custom.Button.url("⬇️ Download last", link_stable + "/" + build)])
         if device['readme']:
-            buttons.append([custom.Button.url(f"📄 Readme file ({device['readme']})", link_beta)])
+            buttons.append([custom.Button.url(f"📄 Readme file ({device['readme']})", link_stable)])
         buttons.append([custom.Button.url("🗄️ All builds", link_stable),
                        custom.Button.url("☁️ Cloud", link_mirror + device_arg)])
 
