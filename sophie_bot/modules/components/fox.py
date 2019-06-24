@@ -2,6 +2,7 @@ from ftplib import FTP
 from time import gmtime, strftime
 import ujson
 import os
+import asyncio
 
 from telethon import custom
 
@@ -47,18 +48,33 @@ NEW_STABLE_TEXT = """🦊 **OrangeFox R10 Stable**
 💬 **OrangeFox chat:** [join](https://t.me/joinchat/HNZTNky4zkpWc7na_-Beow)"""
 
 
-async def update_devices():
+@decorator.command("update")
+async def update_devices(event):
+    if event.chat_id not in fox_dev_chats:
+        return
+
     logger.info("Update info about OrangeFox builds..")
+    msg = await event.reply("Updating...")
     global DEVICES_STABLE
     global DEVICES_BETA
 
-    f = open("update.json", "r")
-    jfile = ujson.load(f)
-    old_beta = jfile['beta']
-    old_stable = jfile['stable']
+    len_stable_devices = len(DEVICES_STABLE)
+    len_beta_devices = len(DEVICES_BETA)
+
+    DEVICES_STABLE = {}
+    DEVICES_BETA = {}
+    if os.path.exists("update.json"):
+        f = open("update.json", "r")
+        jfile = ujson.load(f)
+        old_beta = jfile['beta']
+        old_stable = jfile['stable']
+    else:
+        old_beta = []
+        old_stable = []
 
     ftp = FTP(ftp_url, CONFIG['advanced']['ofox_ftp_user'], CONFIG['advanced']['ofox_ftp_pass'])
 
+    await msg.edit("Updating Stable devices..")
     data = ftp.mlsd("OrangeFox-Stable", ["type"])
     for device, facts in data:
         if not facts["type"] == "dir":
@@ -134,6 +150,7 @@ async def update_devices():
                 link_preview=False
             )
 
+    await msg.edit("Updating Beta devices..")
     data = ftp.mlsd("OrangeFox-Beta", ["type"])
     for device, facts in data:
         if not facts["type"] == "dir":
@@ -224,26 +241,38 @@ async def update_devices():
         ftp.storbinary('STOR %s' % 'Others/update.json', f)
 
     ftp.quit()
-    logger.info("Done!")
+
+    # Counter
+    new_len_stable_devices = len(DEVICES_STABLE)
+    new_len_beta_devices = len(DEVICES_BETA)
+
+    text = "Done!"
+    text += "\n- Beta devices: "
+    m = new_len_beta_devices + len_beta_devices
+    if m > 0:
+        text += "`+ " + m + "` devices"
+    else:
+        text += "`" + m + "` devices"
+
+    text += "\n- Stable devices: "
+    m = new_len_stable_devices + len_stable_devices
+    if m > 0:
+        text += "`+ " + m + "` devices"
+    else:
+        text += "`" + m + "` devices"
+
+    logger.info(text)
 
 
 # Main
-f = open("update.json", "r")
-jfile = ujson.load(f)
-DEVICES_STABLE = jfile['stable']
-DEVICES_BETA = jfile['beta']
+if os.path.exists("update.json"):
+    f = open("update.json", "r")
+    jfile = ujson.load(f)
+    DEVICES_STABLE = jfile['stable']
+    DEVICES_BETA = jfile['beta']
 
 print(DEVICES_STABLE)
 print(DEVICES_BETA)
-
-
-@decorator.command("update")
-async def do_update_devices(event):
-    if event.chat_id not in fox_dev_chats:
-        return
-    msg = await event.reply("Updating...")
-    await update_devices()
-    await msg.edit('Done!')
 
 
 @decorator.command("list")
