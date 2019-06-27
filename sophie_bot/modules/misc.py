@@ -127,7 +127,7 @@ RUN_STRINGS = (  # Thanks PaulSonOfLars and Skittles9823
 )
 
 
-@decorator.command("id", arg=True)
+@decorator.t_command("id", arg=True)
 @t_disablable_dec("id")
 @t_flood_limit_dec("id")
 async def id(event):
@@ -151,7 +151,7 @@ async def id(event):
     await event.reply(text)
 
 
-@decorator.command("pin", arg=True)
+@decorator.t_command("pin", arg=True)
 @user_admin_dec
 @bot_rights.pin_messages()
 @get_strings_dec('misc')
@@ -177,12 +177,12 @@ async def pinMessage(event, strings):
     await event.reply(get_string('misc', 'pinned_success', event.chat_id))
 
 
-@decorator.command("runs")
+@decorator.t_command("runs")
 async def runs(event):
     await event.reply(random.choice(RUN_STRINGS))
 
 
-@decorator.command("unpin")
+@decorator.t_command("unpin")
 @user_admin_dec
 @bot_rights.pin_messages()
 @get_strings_dec('misc')
@@ -195,7 +195,7 @@ async def unpin_message(event, strings):
     await event.reply(get_string('misc', 'unpin_success', event.chat_id))
 
 
-@decorator.command("promote", arg=True)
+@decorator.t_command("promote", arg=True)
 @user_admin_dec
 @bot_rights.add_admins()
 async def promote(event):
@@ -230,7 +230,7 @@ async def promote(event):
         return
 
 
-@decorator.command("demote")
+@decorator.t_command("demote")
 @user_admin_dec
 @bot_rights.add_admins()
 async def demote(event):
@@ -273,7 +273,7 @@ async def demote(event):
     await event.reply(get_string('misc', 'demote_success', event.chat_id))
 
 
-@decorator.command('help')
+@decorator.t_command('help')
 @get_strings_dec('misc')
 async def help(event, strings):
     if event.chat_id != event.from_id:
@@ -284,7 +284,7 @@ async def help(event, strings):
         await event.reply(text, buttons=buttons)
 
 
-@decorator.command('setrules', arg=True)
+@decorator.t_command('setrules', arg=True)
 @user_admin_dec
 @get_strings_dec('misc')
 async def setrules(event, strings):
@@ -309,7 +309,7 @@ async def setrules(event, strings):
         await event.reply(strings['rules_inserted'])
 
 
-@decorator.command('rules')
+@decorator.t_command('rules')
 @get_strings_dec('misc')
 async def rules(event, strings):
     rule = mongodb.rules.find_one({'chat': event.chat_id})
@@ -324,7 +324,7 @@ async def rules(event, strings):
         await event.reply(strings['no_rules'])  # thank paul for dis string :/
 
 
-@decorator.command('clearrules')
+@decorator.t_command('clearrules')
 @user_admin_dec
 @get_strings_dec('misc')
 async def clear_rules(event, strings):
@@ -333,7 +333,7 @@ async def clear_rules(event, strings):
     await event.reply(strings['clrd_rules'])
 
 
-@decorator.command('paste', arg=True)
+@decorator.t_command('paste', arg=True)
 @get_strings_dec('misc')
 async def paste_deldog(event, strings):
     DOGBIN_URL = "https://del.dog/"
@@ -368,7 +368,7 @@ async def paste_deldog(event, strings):
     await event.reply(reply_text, link_preview=False)
 
 
-@decorator.command("info", arg=True)
+@decorator.t_command("info", arg=True)
 @t_flood_limit_dec("info")
 @get_strings_dec("misc")
 async def user_info(event, strings):
