@@ -362,7 +362,7 @@ async def user_link(user_id):
 
 def user_admin_dec(func):
     async def wrapped(event):
-        
+
         if hasattr(event, 'from_id'):
             user_id = event.from_id
         elif hasattr(event, 'from_user'):

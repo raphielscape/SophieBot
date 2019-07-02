@@ -134,6 +134,7 @@ async def all_commands_list(message):
         txt += "* /" + cmd + "\n"
     await message.reply(txt)
 
+
 @decorator.t_command("id", arg=True)
 @disablable_dec("id")
 @flood_limit_dec("id")

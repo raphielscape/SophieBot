@@ -34,4 +34,3 @@ def flood_limit_dec(cmd):
             return await func(event)
         return wrapped_1
     return wrapped
-
