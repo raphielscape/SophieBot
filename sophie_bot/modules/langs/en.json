@@ -28,7 +28,7 @@
         "note_so_big": "This note bigger is than Telegram's limit of 200 characters!",
         "only_admins_can_rmw": "Only admins can remove this message",
         "delmsg_no_arg": "deletemsg button can contain only 'admin' or 'user' argument!",
-        "bot_msg" : "I'm sorry, i can't get this message, probably this a other bot's message. I can't save it.",
+        "bot_msg" : "I'm sorry, I can't get this message, probably this a other bot's message. I can't save it.",
         "pmed_note": "I pm'ed note to you!",
         "notename_cant_contain": "Note name can't conatin `{}` !",
 
