@@ -24,7 +24,7 @@ async def check_message(event):
     for keyword in filters:
         keyword = keyword.decode("utf-8")
         pattern = r"( |^|[^\w])" + re.escape(keyword) + r"( |$|[^\w])"
-        if re.search(pattern, text, flags=re.IGNORECASE):
+        if re.fullmatch(keyword, keyword, flags=re.IGNORECASE):
             H = mongodb.filters.find_one(
                 {'chat_id': event.chat_id, "handler": {'$regex': str(pattern)}})
             action = H['action']
