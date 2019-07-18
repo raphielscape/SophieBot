@@ -21,6 +21,10 @@ from sophie_bot.modules.users import (check_group_admin, is_user_admin,
 from sophie_bot.modules.helper_func.notes import save_get_new_note
 
 
+# Notes - the most modern module of SophieBot
+# Time spended:
+# MrYacha - more than 12 hours
+
 @decorator.command('owo', is_owner=True)
 @user_admin_dec
 @connection()
@@ -86,6 +90,10 @@ async def save_note(event, strings, status, chat_id, chat_title):
 async def clear_note(event, strings, status, chat_id, chat_title):
     note_name = event.pattern_match.group(1)
     note = mongodb.notes.delete_one({'chat_id': chat_id, "name": note_name})
+    
+    if not note_name:
+        return await event.reply(strings["no_note"])
+    
     if note:
         text = strings["note_removed"].format(
             note_name=note_name, chat_name=chat_title)
