@@ -1,10 +1,12 @@
 import asyncio
-import subprocess
 import uuid
+import io
 
 from telethon.tl.functions.channels import (EditBannedRequest,
                                             GetParticipantRequest)
 from telethon.tl.types import ChannelParticipantCreator, ChatBannedRights
+
+from aiogram import types
 
 from sophie_bot import BOT_ID, WHITELISTED, tbot, decorator, mongodb, bot
 from sophie_bot.modules.language import get_string, get_strings_dec
@@ -185,16 +187,12 @@ async def fed_chat_list(message, strings, status, chat_id, chat_title, fed,
         chat = mongodb.chat_list.find_one({'chat_id': fed['chat_id']})
         text += '* {} (`{}`)\n'.format(chat["chat_title"], fed['chat_id'])
     if len(text) > 4096:
-        output = open("output.txt", "w+")
-        output.write(text)
-        output.close()
-        await tbot.send_file(  # TOOD: convert to AIO
-            message.chat.id,
-            "output.txt",
-            reply_to=message.message_id,
-            caption="`Output too large, sending as file`",
+        output = io.StringIO(text)
+        output = types.InputFile(output, filename="chatlist.txt")
+        await message.answer_document(
+            output,
+            "Output too large, sending as file"
         )
-        subprocess.run(["rm", "output.txt"], stdout=subprocess.PIPE)
         return
     await message.reply(text)
 
