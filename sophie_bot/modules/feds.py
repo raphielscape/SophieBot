@@ -187,10 +187,8 @@ async def fed_chat_list(message, strings, status, chat_id, chat_title, fed,
         chat = mongodb.chat_list.find_one({'chat_id': fed['chat_id']})
         text += '* {} (`{}`)\n'.format(chat["chat_title"], fed['chat_id'])
     if len(text) > 4096:
-        output = io.StringIO(text)
-        output = types.InputFile(output, filename="chatlist.txt")
         await message.answer_document(
-            output,
+            types.InputFile(io.StringIO(text), filename="chatlist.txt"),
             "Output too large, sending as file"
         )
         return
