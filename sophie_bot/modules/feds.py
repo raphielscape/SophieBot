@@ -202,7 +202,6 @@ async def fed_chat_list(message, strings, status, chat_id, chat_title, fed,
 @get_strings_dec("feds")
 async def fed_info(message, strings, status, chat_id, chat_title, fed,
                    *args, **kwargs):
-    print('owo')
     text = strings['fed_info']
     text += strings['fed_name'].format(name=fed['fed_name'])
     text += strings['fed_id'].format(id=fed['fed_id'])
