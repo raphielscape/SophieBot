@@ -198,8 +198,6 @@ def connection(**dec_kwargs):
             elif hasattr(event, 'chat'):
                 chat_id = event.chat.id
 
-            print(kwargs)
-
             status, chat_id, chat_title = await get_conn_chat(
                 user_id, chat_id, **dec_kwargs)
             if status is False:
