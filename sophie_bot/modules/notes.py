@@ -334,7 +334,6 @@ async def check_hashtag(message: types.Message):
         await message.reply(chat_id)
         return
     note_name = message['text'][1:].split(" ", 2)[0].lower()
-    print(note_name)
     if len(note_name) >= 1:
         await send_note(
             message['chat']['id'], chat_id, message['message_id'], note_name,
