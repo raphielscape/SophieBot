@@ -73,9 +73,11 @@ async def blacklist_user(message):
             await bot.kick_chat_member(message.chat.id, user_id)
         except Exception:
             pass
-        await msg.edit_text(
-            text + "\nStatus: <b>User not banned in any chat, but added in blacklist</b>")
-        return
+        ttext = text + "\nStatus: <b>User not banned in any chat, but added in blacklist</b>"
+        await msg.edit_text(ttext)
+        if CONFIG['advanced']['gbans_channel_enabled'] is True:
+            await bot.send_message(CONFIG['advanced']['gbans_channel'], ttext)
+            return
 
     for chat in user['chats']:
         await asyncio.sleep(0.2)
@@ -85,12 +87,11 @@ async def blacklist_user(message):
         except Exception:
             continue
 
-    await msg.edit_text(text + "\nStatus: <b>Done, user gbanned in {}/{} chats.</b>".format(
-        gbanned_ok, len(user['chats'])
-    ))
+    ttext = text + "\nStatus: <b>Done, user gbanned in {}/{} chats.</b>".format(
+        gbanned_ok, len(user['chats']))
+    await msg.edit_text(ttext)
     if CONFIG['advanced']['gbans_channel_enabled'] is True:
-        text
-        await bot.send_message(CONFIG['advanced']['gbans_channel'], text)
+        await bot.send_message(CONFIG['advanced']['gbans_channel'], ttext)
 
 
 @decorator.command("gban")
@@ -102,9 +103,8 @@ async def gban_1(message):
 
 @decorator.command("fban")
 async def gban_2(message):
-    if not message.from_user.id == 172811422:
-        return
-    await blacklist_user(message)
+    if message.chat.id == -1001302848189:
+        await blacklist_user(message)
 
 
 @decorator.command("ungban")
