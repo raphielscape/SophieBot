@@ -102,7 +102,7 @@ async def gban_1(message):
 
 
 @decorator.command("fban")
-async def gban_2(message):
+async def gban_2(message, **kwargs):
     if message.chat.id == -1001302848189:
         await blacklist_user(message)
 
