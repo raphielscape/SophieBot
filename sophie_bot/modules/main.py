@@ -1,9 +1,9 @@
 import asyncio
 import math
 import subprocess
-import ujson
+import sys
 
-from sophie_bot import mongodb, tbot, decorator, dp, logger
+from sophie_bot import mongodb, tbot, decorator, dp, logger, bot
 from sophie_bot.modules.disable import disablable_dec
 
 from aiogram import types
@@ -72,9 +72,17 @@ async def stats(message, **kwargs):
 
 
 @dp.errors_handler()
-async def all_errors_handler(dp, update, e, *args, **kwargs):
-    print(*args, **kwargs)
-    logger.exception(f'The update was: {ujson.dumps(update.to_python(), indent=4)}', exc_info=True)
+async def all_errors_handler(message, idk_wot_is_it):
+    logger.error(message)
+    msg = message.message
+
+    text = "<code>:(</code>\n"
+    text += "<b>Sorry, i get a error!</b> Please report it to Sophie chat.\n"
+    text += "I will log update for future purposes\n"
+    text += "Original error message:\n"
+    text += f"<code>{sys.exc_info()[1]}</code>"
+
+    await bot.send_message(msg.chat.id, text, reply_to_message_id=msg.message_id)
     return
 
 
