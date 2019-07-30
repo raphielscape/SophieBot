@@ -151,7 +151,7 @@ async def update_devices(event):
     await Omsg.edit("Updating Beta devices..")
     data = ftp.mlsd("OrangeFox-Beta", ["type"])
     for device, facts in data:
-        await asyncio.sleep(0.5)
+        await asyncio.sleep(0.2)
         if not facts["type"] == "dir":
             continue
 

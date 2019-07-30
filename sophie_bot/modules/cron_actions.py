@@ -22,7 +22,7 @@ async def attime():
 
     s_num = 0
     for user_id in cas_banned:
-        await asyncio.sleep(0.5)
+        await asyncio.sleep(0.1)
         num += 1
         print(f"{num}/{len(cas_banned)}")
         gbanned = mongodb.blacklisted_users.find_one({'user': user_id})
