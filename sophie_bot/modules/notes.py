@@ -1,5 +1,16 @@
 import re
 import difflib
+import base64
+import bz2
+import os
+import random
+import string
+
+from cryptography.fernet import Fernet, InvalidToken
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+
 from time import gmtime, strftime
 
 from bson.objectid import ObjectId
@@ -18,18 +29,6 @@ from sophie_bot.modules.language import get_string, get_strings_dec
 from sophie_bot.modules.users import (check_group_admin, is_user_admin,
                                       user_admin_dec, user_link,
                                       add_user_to_db, user_link_html)
-
-
-# Notes - the most modern module of SophieBot
-# Time spended:
-# MrYacha - more than 12 hours
-
-@decorator.command('owo', is_owner=True)
-@user_admin_dec
-@connection()
-@get_strings_dec("notes")
-async def test(message, strings, status, chat_id, chat_title):
-    print(message)
 
 
 RESTRICTED_SYMBOLS = ['**', '__', '`']
@@ -71,6 +70,7 @@ async def save_note(event, strings, status, chat_id, chat_title):
     date = strftime("%Y-%m-%d %H:%M:%S", gmtime())
     created_date = date
     creator = None
+    encrypted = "particle-v1"
     if old:
         if 'created' in old:
             created_date = old['created']
@@ -81,6 +81,36 @@ async def save_note(event, strings, status, chat_id, chat_title):
     if not creator:
         creator = event.from_id
 
+    h = re.search(r"(\[encryption:(particle|fully|no)\])", note_text)
+    if h:
+        note_text = note_text.replace(h.group(1), "")
+        format_raw = h.group(2).lower()
+        if format_raw == 'no':
+            encrypted = False
+        elif format_raw == 'particle':
+            encrypted = "particle-v1"
+        elif format_raw == 'fully':
+            encrypted = 'fully'
+
+    if encrypted == "particle-v1":
+        note_text = base64.urlsafe_b64encode(bz2.compress(note_text.encode()))
+    elif encrypted == "fully":
+        password = randomString(12).encode()
+        salt = os.urandom(16)
+        kdf = PBKDF2HMAC(
+            algorithm=hashes.SHA256(),
+            length=32,
+            salt=salt,
+            iterations=100000,
+            backend=default_backend()
+        )
+        key = base64.urlsafe_b64encode(kdf.derive(password))
+        f = Fernet(key)
+        note_text = f.encrypt(note_text.encode())
+        if file_id:
+            file_id = f.encrypt(file_id.encode())
+        encrypted = salt
+
     new = ({
         'chat_id': chat_id,
         'name': note_name,
@@ -89,7 +119,8 @@ async def save_note(event, strings, status, chat_id, chat_title):
         'created': created_date,
         'updated_by': event.from_id,
         'creator': creator,
-        'file_id': file_id
+        'file_id': file_id,
+        'encrypted': encrypted
     })
 
     buttons = None
@@ -106,7 +137,17 @@ async def save_note(event, strings, status, chat_id, chat_title):
 
     text = strings["note_saved_or_updated"].format(
         note_name=note_name, status=status, chat_title=chat_title)
-    text += strings["you_can_get_note"].format(name=note_name)
+    if encrypted is not False:
+        if encrypted == "particle-v1":
+            text += f"Note encrypted particle 🔒\n"
+            text += strings["you_can_get_note"].format(name=note_name)
+        else:
+            text += f"Note encrypted fully 🔐\n"
+            text += "Password: " + password.decode() + '\n'
+            text += strings["you_can_get_note_enc"].format(
+                name=note_name, password=password.decode())
+    else:
+        text += strings["you_can_get_note"].format(name=note_name)
 
     await event.reply(text, buttons=buttons)
 
@@ -168,7 +209,7 @@ async def list_notes(event, strings, status, chat_id, chat_title):
 
 async def send_note(chat_id, group_id, msg_id, note_name,
                     show_none=False, noformat=False, preview=False,
-                    from_id=""):
+                    from_id="", key=False):
     file_id = None
     note = mongodb.notes.find_one({'chat_id': int(group_id), 'name': note_name})
     if not note and show_none is True:
@@ -190,12 +231,41 @@ async def send_note(chat_id, group_id, msg_id, note_name,
     if not file_id:
         file_id = None
 
+    if 'encrypted' not in note or note['encrypted'] is False:
+        raw_note_text = note['text']
+
+    elif 'encrypted' in note:
+        if note['encrypted'] == 'particle-v1':
+            raw_note_text = bz2.decompress(base64.urlsafe_b64decode(note['text'])).decode()
+        else:
+            if not key:
+                await tbot.send_message(chat_id, "This note encrypted! Please write a password!",
+                                        reply_to=msg_id)
+                return
+            salt = note['encrypted']
+            kdf = PBKDF2HMAC(
+                algorithm=hashes.SHA256(),
+                length=32,
+                salt=salt,
+                iterations=100000,
+                backend=default_backend()
+            )
+            key = base64.urlsafe_b64encode(kdf.derive(key.encode()))
+            f = Fernet(key)
+            try:
+                raw_note_text = f.decrypt(note['text']).decode()
+                if file_id:
+                    file_id = f.decrypt(file_id).decode()
+            except InvalidToken:
+                await tbot.send_message(chat_id, "Invalid password!", reply_to=msg_id)
+                return
+
     if noformat is True:
         format = None
-        string = note['text']
+        string = raw_note_text
         buttons = ""
     else:
-        string, buttons = button_parser(group_id, note['text'])
+        string, buttons = button_parser(group_id, raw_note_text)
         h = re.search(r"(\[format:(markdown|md|html|none)\])", string)
         if h:
             string = string.replace(h.group(1), "")
@@ -313,21 +383,28 @@ async def del_note_callback(event):
 @dp.message_handler(commands=['get'], commands_prefix='!/#')
 async def get_note(message):
     status, chat_id, chat_title = await get_conn_chat(message['from']['id'], message['chat']['id'])
-    args = message['text'].split(" ", 3)
+    args = message['text'].split(" ", 4)
     if not args:
         return
+
+    key = False
 
     note_name = args[1].lower()
     if note_name[0] == "#":
         note_name = note_name[1:]
     if len(args) >= 3 and args[2].lower() == "noformat":
         noformat = True
+    elif len(args) >= 3:
+        key = args[2]
+        noformat = False
+        if len(args) >= 4 and args[3].lower() == "noformat":
+            noformat = True
     else:
         noformat = False
     if len(note_name) >= 1:
         await send_note(
             message['chat']['id'], chat_id, message['message_id'], note_name,
-            show_none=True, noformat=noformat, from_id=message['from']['id'])
+            show_none=True, noformat=noformat, from_id=message['from']['id'], key=key)
 
 
 @dp.message_handler(regexp="#(\w+)")
@@ -467,3 +544,8 @@ async def del_message_callback(event):
         return
 
     await event.delete()
+
+
+def randomString(stringLength):
+    letters = string.ascii_letters
+    return ''.join(random.choice(letters) for i in range(stringLength))
