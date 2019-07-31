@@ -60,10 +60,15 @@ def update_user(chat_id, new_user):
     else:
         username = None
 
+    if hasattr(new_user, 'last_name') and new_user.last_name:
+        last_name = new_user.last_name.replace('<', '&lt;')
+    else:
+        last_name = None
+    
     user_new = {
         'user_id': new_user.id,
         'first_name': new_user.first_name,
-        'last_name': new_user.last_name,
+        'last_name': last_name,
         'username': username,
         'user_lang': new_user.language_code,
         'chats': new_chat
@@ -386,13 +391,15 @@ async def user_link_html(user_id):
         try:
             user = await add_user_to_db(await tbot(GetFullUserRequest(int(user_id))))
             user_link = "<a href=\"tg://user?id={id}\">{name}</a>".format(
-                name=user['first_name'], id=user['user_id'])
+                name=user['first_name'].replace('<', '&lt;'),
+                id=user['user_id'])
         except Exception:
             user_link = "<a href=\"tg://user?id={id}\">{name}</a>".format(
                 name=user_id, id=user_id)
     else:
         user_link = "<a href=\"tg://user?id={id}\">{name}</a>".format(
-            name=user['first_name'], id=user['user_id'])
+            name=user['first_name'].replace('<', '&lt;'),
+            id=user['user_id'])
 
     return user_link
 
