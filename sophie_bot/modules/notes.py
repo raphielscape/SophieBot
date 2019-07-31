@@ -109,7 +109,6 @@ async def save_note(event, strings, status, chat_id, chat_title):
         note_text = f.encrypt(note_text.encode())
         if file_id:
             file_id = f.encrypt(file_id.encode())
-        print(f.generate_key())
         encrypted = salt
 
     new = ({
@@ -211,7 +210,6 @@ async def list_notes(event, strings, status, chat_id, chat_title):
 async def send_note(chat_id, group_id, msg_id, note_name,
                     show_none=False, noformat=False, preview=False,
                     from_id="", key=False):
-    print(key)
     file_id = None
     note = mongodb.notes.find_one({'chat_id': int(group_id), 'name': note_name})
     if not note and show_none is True:
