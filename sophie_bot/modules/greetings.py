@@ -38,7 +38,7 @@ async def do_welcomesecurity(message, strings, from_id, chat_id):
             return
 
         text = strings['wlcm_sec'].format(mention=await user_link_html(from_id))
-        await message.reply(text, buttons=buttons)
+        await message.reply(text, reply_markup=buttons)
 
 
 async def do_cleanwelcome(message, chat_id, welc_msg):
