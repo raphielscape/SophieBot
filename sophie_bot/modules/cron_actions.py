@@ -4,7 +4,8 @@ import io
 import asyncio
 from time import gmtime, strftime
 
-from sophie_bot import CONFIG, bot, mongodb
+from sophie_bot import CONFIG, bot, mongodb, tbot, dp
+from sophie_bot.__main__ import on_startup
 
 
 @aiocron.crontab('50 16 * * *')
@@ -44,3 +45,15 @@ async def attime():
     text = f"Imported {s_num} CAS bans."
     if CONFIG['advanced']['gbans_channel_enabled'] is True:
         await bot.send_message(CONFIG['advanced']['gbans_channel'], text)
+
+
+@aiocron.crontab('* * * * * 0/30')
+async def check_self_webhooks():
+    if CONFIG['webhooks'] is False:
+        return
+    info = await bot.get_webhook_info()
+    limit = 30
+    if info['pending_update_count'] > limit:
+        # ALERT
+        await tbot.send_message(CONFIG['owner_id'], "Alert! Webhooks limit reached!")
+        await on_startup(dp)

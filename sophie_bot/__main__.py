@@ -159,12 +159,13 @@ if CONFIG['advanced']['webhooks'] is True:
     logger.info("Using webhooks method")
     executor.start_webhook(
         dispatcher=dp,
-        webhook_path=TOKEN,
+        webhook_path="/" + TOKEN,
         on_startup=on_startup,
         on_shutdown=on_shutdown,
         skip_updates=CATCH_UP,
         host=WEBAPP_HOST,
-        port=WEBAPP_PORT
+        port=WEBAPP_PORT,
+        access_log=None
     )
 else:
     logger.info("Using polling method")
