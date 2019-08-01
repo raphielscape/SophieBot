@@ -34,6 +34,13 @@ from sophie_bot.modules.users import (check_group_admin, is_user_admin,
 RESTRICTED_SYMBOLS = ['**', '__', '`']
 
 
+@decorator.command("owo", is_owner=True)
+async def test(message, **kwagrs):
+    text = "test " + await user_link_html(762730992, custom_name="‏")  # Here invisible symbol
+    print(await message.reply(text))
+
+
+
 @decorator.t_command("save", word_arg=True)
 @user_admin_dec
 @connection(admin=True)
