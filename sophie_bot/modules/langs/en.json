@@ -63,6 +63,7 @@
         "user_admin_kick": "This is an admin, I can't kick them.",
         "user_admin_unmute": "Mm?! Unmuted.",
         "user_mooted": "{admin} has muted {user} in {chat_name}.",
+        "user_maybe_admin": "I can't kick him!, Maybe a admin?",
         "user_unmooted": "{admin} has unmuted {user} in {chat_name}.",
         "kickme_admin": "I can't kick you!",
         "whitelisted": "Haha No! You are whitelisted!",
@@ -175,7 +176,7 @@
         "time_1w": "1 Week",
 
         "time_not_valid": "Time value isn't valid!",
-        
+
         "cant_find_note": "Sorry, I can't find this note.",
 
         "filter_added": "<b>Filter added successfully!</b>",

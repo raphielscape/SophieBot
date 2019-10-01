@@ -16,7 +16,7 @@
 import time
 
 from aiogram.types.chat_permissions import ChatPermissions
-from aiogram.utils.exceptions import NotEnoughRightsToRestrict
+from aiogram.utils.exceptions import NotEnoughRightsToRestrict, BadRequest
 
 from telethon.tl.functions.channels import EditBannedRequest, GetParticipantRequest
 from telethon.tl.types import ChatBannedRights, ChannelParticipantBanned
@@ -138,12 +138,15 @@ async def muter(message, strings, status, chat_id, chat_title):
     user, text = await get_user_and_text(message)
     if not user:
         return
-    if await mute_user(message, user['user_id'], chat_id, None):
-        admin_str = await user_link_html(message.from_user.id)
-        user_str = await user_link_html(user['user_id'])
-        text = strings["user_mooted"]
+    try:
+        if await mute_user(message, user['user_id'], chat_id, None):
+            admin_str = await user_link_html(message.from_user.id)
+            user_str = await user_link_html(user['user_id'])
+            text = strings["user_mooted"]
+            await message.reply(text.format(admin=admin_str, user=user_str, chat_name=chat_title))
+    except BadRequest:
+        text = strings["user_maybe_admin"]
         await message.reply(text.format(admin=admin_str, user=user_str, chat_name=chat_title))
-
 
 @decorator.register(cmds="unmute")
 @user_admin_dec
